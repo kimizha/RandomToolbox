@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read
@@ -27,8 +27,36 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Install Android SDK platform
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Configure Android SDK
+        shell: bash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          SDK_DIR="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+
+          if [ -z "$SDK_DIR" ]; then
+            echo "Android SDK directory not found"
+            exit 1
+          fi
+
+          SDKMANAGER=$(find "$SDK_DIR/cmdline-tools" -name sdkmanager -type f | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found"
+            exit 1
+          fi
+
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+
+      - name: Accept Android SDK licenses
+        run: yes | "$SDKMANAGER" --licenses || true
+
+      - name: Install Android SDK packages
+        run: |
+          "$SDKMANAGER" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
@@ -38,3 +66,4 @@ jobs:
         with:
           name: RandomToolbox-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
