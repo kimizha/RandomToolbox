@@ -29,8 +29,14 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity implements SensorEventListener {
     private static final String HOME_URL = "file:///android_asset/index.html";
-    private static final String MANIFEST_URL = "https://raw.githubusercontent.com/kimizha/RandomToolbox/main/updates/version.json";
-    private static final String HTML_URL = "https://raw.githubusercontent.com/kimizha/RandomToolbox/main/updates/index.html";
+    private static final String[] MANIFEST_URLS = {
+        "https://raw.githubusercontent.com/kimizha/RandomToolbox/main/updates/version.json",
+        "https://github.com/kimizha/RandomToolbox/raw/refs/heads/main/updates/version.json"
+    };
+    private static final String[] HTML_URLS = {
+        "https://raw.githubusercontent.com/kimizha/RandomToolbox/main/updates/index.html",
+        "https://github.com/kimizha/RandomToolbox/raw/refs/heads/main/updates/index.html"
+    };
     private static final int BUNDLED_WEB_VERSION = 12;
     private static final int MAX_HTML_BYTES = 2 * 1024 * 1024;
 
@@ -47,6 +53,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private boolean restoring = false;
     private boolean pagePrepared = false;
     private String statusText = "自动检查更新 · 支持离线使用";
+    private long lastBack = 0;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -121,7 +128,6 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private void applyHtml(String html) {
         String b64 = Base64.encodeToString(html.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
-        // document.write 保留 file:///android_asset/ 的同源 localStorage。
         js("(function(){try{var b=Uint8Array.from(atob('" + b64 + "'),c=>c.charCodeAt(0));" +
            "var h=new TextDecoder('utf-8').decode(b);document.open();document.write(h);document.close();" +
            "setTimeout(function(){" + featureScript() + "},100);" +
@@ -195,11 +201,11 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (manual) updateStatus("正在检查更新…");
         worker.execute(() -> {
             try {
-                JSONObject manifest = new JSONObject(new String(download(MANIFEST_URL, 32768), StandardCharsets.UTF_8));
+                JSONObject manifest = new JSONObject(new String(downloadWithFallback(MANIFEST_URLS, 32768), StandardCharsets.UTF_8));
                 int version = manifest.getInt("webVersion");
                 String hash = manifest.getString("sha256").toLowerCase(Locale.ROOT);
-                if (!hash.matches("[a-f0-9]{64}")) throw new IOException("invalid sha256");
-                int installed = prefs.getInt("webVersion", BUNDLED_WEB_VERSION);
+                if (!hash.matches("[a-f0-9]{64}")) throw new IOException("更新配置中的 SHA-256 格式错误");
+                int installed = Math.max(BUNDLED_WEB_VERSION, prefs.getInt("webVersion", BUNDLED_WEB_VERSION));
                 int blocked = prefs.getInt("blockedVersion", -1);
                 if (version <= installed) {
                     if (manual) updateStatus("当前已是最新网页版本 " + installed);
@@ -210,31 +216,48 @@ public class MainActivity extends Activity implements SensorEventListener {
                     return;
                 }
                 updateStatus("发现网页版本 " + version + "，正在下载…");
-                byte[] bytes = download(HTML_URL, MAX_HTML_BYTES);
-                if (!sha256(bytes).equals(hash)) throw new IOException("SHA-256 mismatch");
+                byte[] bytes = downloadWithFallback(HTML_URLS, MAX_HTML_BYTES);
+                if (!sha256(bytes).equals(hash)) throw new IOException("SHA-256 校验不一致，请检查更新文件");
                 String html = new String(bytes, StandardCharsets.UTF_8);
-                if (!validHtml(html)) throw new IOException("invalid HTML");
+                if (!validHtml(html)) throw new IOException("下载的 HTML 内容不符合要求");
                 File tmp = new File(getFilesDir(), "randomtoolbox_update.tmp");
                 File hashTmp = new File(getFilesDir(), "randomtoolbox_update.sha256.tmp");
                 try (FileOutputStream out = new FileOutputStream(tmp)) {
-                    out.write(bytes);out.getFD().sync();
+                    out.write(bytes); out.getFD().sync();
                 }
                 try (FileOutputStream out = new FileOutputStream(hashTmp)) {
-                    out.write(hash.getBytes(StandardCharsets.US_ASCII));out.getFD().sync();
+                    out.write(hash.getBytes(StandardCharsets.US_ASCII)); out.getFD().sync();
                 }
                 File dest = updateFile(), hashDest = updateHashFile();
-                if (dest.exists() && !dest.delete()) throw new IOException("cannot replace cached HTML");
-                if (!tmp.renameTo(dest)) throw new IOException("cannot save cached HTML");
-                if (hashDest.exists() && !hashDest.delete()) throw new IOException("cannot replace checksum");
-                if (!hashTmp.renameTo(hashDest)) throw new IOException("cannot save checksum");
+                if (dest.exists() && !dest.delete()) throw new IOException("无法替换本地网页缓存");
+                if (!tmp.renameTo(dest)) throw new IOException("无法保存本地网页缓存");
+                if (hashDest.exists() && !hashDest.delete()) throw new IOException("无法替换校验文件");
+                if (!hashTmp.renameTo(hashDest)) throw new IOException("无法保存校验文件");
                 prefs.edit().putInt("webVersion", version).apply();
                 updateStatus("已下载网页版本 " + version + "，正在应用…");
                 applyHtml(html);
                 main.postDelayed(() -> notifyUser("已更新到网页版本 " + version), 700);
             } catch (Exception e) {
                 if (manual) updateStatus("更新失败：" + e.getMessage());
-            } finally { checking = false; }
+            } finally {
+                checking = false;
+            }
         });
+    }
+
+    private static byte[] downloadWithFallback(String[] addresses, int maxBytes) throws IOException {
+        IOException last = null;
+        StringBuilder errors = new StringBuilder();
+        for (int i = 0; i < addresses.length; i++) {
+            try {
+                return download(addresses[i], maxBytes);
+            } catch (IOException e) {
+                last = e;
+                if (errors.length() > 0) errors.append("；");
+                errors.append("地址").append(i + 1).append("：").append(e.getMessage());
+            }
+        }
+        throw new IOException("两个更新地址均失败（" + errors + "）", last);
     }
 
     private static byte[] download(String address, int maxBytes) throws IOException {
@@ -242,18 +265,24 @@ public class MainActivity extends Activity implements SensorEventListener {
         conn.setConnectTimeout(9000);
         conn.setReadTimeout(12000);
         conn.setInstanceFollowRedirects(true);
+        conn.setRequestProperty("Accept", "application/json, text/html, */*");
+        conn.setRequestProperty("User-Agent", "RandomToolbox-Android/1.3.1");
         try {
-            if (conn.getResponseCode() != 200) throw new IOException("HTTP " + conn.getResponseCode());
+            int code = conn.getResponseCode();
+            if (code != 200) throw new IOException("HTTP " + code);
             return readLimited(conn.getInputStream(), maxBytes);
-        } finally { conn.disconnect(); }
+        } finally {
+            conn.disconnect();
+        }
     }
+
     private static byte[] readLimited(InputStream input, int max) throws IOException {
         try (InputStream in = input; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            byte[] buf = new byte[8192];int n,total=0;
-            while ((n=in.read(buf))!=-1) {
-                total+=n;
-                if(total>max)throw new IOException("文件超过大小限制");
-                out.write(buf,0,n);
+            byte[] buf = new byte[8192]; int n, total = 0;
+            while ((n = in.read(buf)) != -1) {
+                total += n;
+                if (total > max) throw new IOException("文件超过大小限制");
+                out.write(buf, 0, n);
             }
             return out.toByteArray();
         }
@@ -261,7 +290,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private static String sha256(byte[] data) throws Exception {
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
         StringBuilder b = new StringBuilder();
-        for(byte x:digest)b.append(String.format(Locale.ROOT,"%02x",x&255));
+        for (byte x : digest) b.append(String.format(Locale.ROOT, "%02x", x & 255));
         return b.toString();
     }
 
@@ -269,11 +298,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         @JavascriptInterface public void checkUpdate() { main.post(() -> checkForUpdates(true)); }
         @JavascriptInterface public void rollback() {
             main.post(() -> {
-                // 不直接中断后台下载：先排队，确保回退不会被正在执行的更新覆盖。
                 worker.execute(() -> {
                     int v = prefs.getInt("webVersion", BUNDLED_WEB_VERSION);
                     prefs.edit().putInt("blockedVersion", v).remove("webVersion").commit();
-                    updateFile().delete();updateHashFile().delete();
+                    updateFile().delete(); updateHashFile().delete();
                     main.post(() -> {
                         restoring = true;
                         pagePrepared = false;
@@ -285,44 +313,46 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     @Override protected void onResume() {
-        super.onResume();sensorReady=false;
-        if(sensorManager!=null && accelerometer!=null)
-            sensorManager.registerListener(this,accelerometer,SensorManager.SENSOR_DELAY_GAME);
-        if(webView!=null)webView.onResume();
+        super.onResume(); sensorReady = false;
+        if (sensorManager != null && accelerometer != null)
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+        if (webView != null) webView.onResume();
     }
     @Override protected void onPause() {
-        if(sensorManager!=null)sensorManager.unregisterListener(this);
-        if(webView!=null)webView.onPause();
+        if (sensorManager != null) sensorManager.unregisterListener(this);
+        if (webView != null) webView.onPause();
         super.onPause();
     }
     @Override public void onSensorChanged(SensorEvent e) {
-        if(e.sensor.getType()!=Sensor.TYPE_ACCELEROMETER || webView==null)return;
-        float a=.82f;
-        if(!sensorReady){gravityX=e.values[0];gravityY=e.values[1];gravityZ=e.values[2];sensorReady=true;return;}
-        gravityX=a*gravityX+(1-a)*e.values[0];
-        gravityY=a*gravityY+(1-a)*e.values[1];
-        gravityZ=a*gravityZ+(1-a)*e.values[2];
-        float x=e.values[0]-gravityX,y=e.values[1]-gravityY,z=e.values[2]-gravityZ;
-        float strength=(float)Math.sqrt(x*x+y*y+z*z);
-        long now=SystemClock.elapsedRealtime();
-        if(strength>15.0f && now-lastShake>1500){
-            lastShake=now;
+        if (e.sensor.getType() != Sensor.TYPE_ACCELEROMETER || webView == null) return;
+        float a = .82f;
+        if (!sensorReady) {
+            gravityX = e.values[0]; gravityY = e.values[1]; gravityZ = e.values[2];
+            sensorReady = true; return;
+        }
+        gravityX = a * gravityX + (1 - a) * e.values[0];
+        gravityY = a * gravityY + (1 - a) * e.values[1];
+        gravityZ = a * gravityZ + (1 - a) * e.values[2];
+        float x = e.values[0] - gravityX, y = e.values[1] - gravityY, z = e.values[2] - gravityZ;
+        float strength = (float) Math.sqrt(x * x + y * y + z * z);
+        long now = SystemClock.elapsedRealtime();
+        if (strength > 15.0f && now - lastShake > 1500) {
+            lastShake = now;
             js("if(window.rtShake)window.rtShake();");
         }
     }
-    @Override public void onAccuracyChanged(Sensor sensor,int accuracy) {}
+    @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
     @Override public void onBackPressed() {
-        if(webView==null){super.onBackPressed();return;}
+        if (webView == null) { super.onBackPressed(); return; }
         js("if(typeof go==='function' && !document.getElementById('home').classList.contains('active'))go('home');else if(typeof toast==='function')toast('再次按返回键可退出应用');");
-        long now=SystemClock.elapsedRealtime();
-        if(now-lastBack<1800)super.onBackPressed();
-        lastBack=now;
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastBack < 1800) super.onBackPressed();
+        lastBack = now;
     }
-    private long lastBack=0;
     @Override protected void onDestroy() {
         worker.shutdownNow();
-        if(sensorManager!=null)sensorManager.unregisterListener(this);
-        if(webView!=null){webView.destroy();webView=null;}
+        if (sensorManager != null) sensorManager.unregisterListener(this);
+        if (webView != null) { webView.destroy(); webView = null; }
         super.onDestroy();
     }
 }
