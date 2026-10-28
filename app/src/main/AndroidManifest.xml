@@ -6,6 +6,7 @@
 
     <application
         android:label="随机工具箱"
+        android:icon="@drawable/app_icon"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false"
         android:allowBackup="false">
