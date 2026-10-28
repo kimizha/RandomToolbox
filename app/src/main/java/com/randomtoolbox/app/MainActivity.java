@@ -11,6 +11,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.MediaMetadataRetriever;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -295,6 +296,36 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     public class NativeBridge {
+        @JavascriptInterface public String getMusicCover(String relativePath) {
+            if (relativePath == null || !relativePath.startsWith("music/")
+                || !relativePath.toLowerCase(Locale.ROOT).endsWith(".mp3")
+                || relativePath.contains("..") || relativePath.contains("\\")
+                || relativePath.startsWith("/")) return "";
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            File temp = null;
+            try {
+                temp = File.createTempFile("rt_cover_", ".mp3", getCacheDir());
+                try (InputStream in = getAssets().open(relativePath);
+                     FileOutputStream out = new FileOutputStream(temp)) {
+                    byte[] buffer = new byte[32768];
+                    int n;
+                    while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+                }
+                retriever.setDataSource(temp.getAbsolutePath());
+                byte[] picture = retriever.getEmbeddedPicture();
+                if (picture == null || picture.length == 0 || picture.length > 2 * 1024 * 1024) return "";
+                String mime = "image/jpeg";
+                if (picture.length > 3 && (picture[0] & 255) == 0x89 && (picture[1] & 255) == 0x50) mime = "image/png";
+                else if (picture.length > 3 && (picture[0] & 255) == 0x52 && (picture[1] & 255) == 0x49) mime = "image/webp";
+                return "data:" + mime + ";base64," + Base64.encodeToString(picture, Base64.NO_WRAP);
+            } catch (Exception e) {
+                android.util.Log.w("RandomToolbox", "读取音乐封面失败: " + relativePath, e);
+                return "";
+            } finally {
+                try { retriever.release(); } catch (Exception ignored) {}
+                if (temp != null) temp.delete();
+            }
+        }
         @JavascriptInterface public void checkUpdate() { main.post(() -> checkForUpdates(true)); }
         @JavascriptInterface public void rollback() {
             main.post(() -> {
