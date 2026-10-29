@@ -118,7 +118,7 @@ jobs:
           const fs = require('fs');
           const vm = require('vm');
           const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
-          const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)];
+          const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
           if (!scripts.length) throw Error('No inline JavaScript found');
           for (let i = 0; i < scripts.length; i++) {
             new vm.Script(scripts[i][1], {filename: 'inline-script-' + (i + 1) + '.js'});
