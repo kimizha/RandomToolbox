@@ -63,7 +63,7 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -174,3 +174,29 @@ jobs:
           name: RandomToolbox-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish successful development APK as prerelease
+        if: github.ref == 'refs/heads/dev/cloudbase-auth-integration'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_NAME=$(sed -n "s/^[[:space:]]*versionName '\([^']*\)'.*/\1/p" app/build.gradle | head -1)
+          VERSION_CODE=$(sed -n 's/^[[:space:]]*versionCode \([0-9]*\).*/\1/p' app/build.gradle | head -1)
+          test -n "$VERSION_NAME" && test -n "$VERSION_CODE"
+          TAG="dev-v${VERSION_NAME}-code${VERSION_CODE}"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          mkdir -p release-output
+          cp "$APK" "release-output/RandomToolbox-v${VERSION_NAME}-debug.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Keeping its original APK; bump versionCode to publish a new version."
+          else
+            gh release create "$TAG" "release-output/RandomToolbox-v${VERSION_NAME}-debug.apk" \
+              --target "$GITHUB_SHA" \
+              --title "随机工具箱 V${VERSION_NAME}（开发测试版）" \
+              --notes "开发分支自动构建成功后发布。仅供测试，正式版尚未发布。" \
+              --prerelease
+          fi
