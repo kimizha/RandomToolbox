@@ -220,6 +220,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                   var p=document.createElement('div');p.className='panel';p.id='rtUpdatePanel';
                   var title=document.createElement('h2');title.style.fontSize='17px';title.textContent='☁️ 版本更新';
                   var status=document.createElement('p');status.className='hint';status.id='rtUpdateStatus';
+                  var diagnostic=document.createElement('pre');diagnostic.id='rtUpdateDiagnostic';diagnostic.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:1.6;color:var(--muted);margin:12px 0';
+                  diagnostic.textContent='当前版本：V1.8 (code 7)\\n更新地址：dev 测试通道\\n等待检查…';
                   var check=document.createElement('button');check.className='secondary';
                   check.style.cssText='width:100%;margin-bottom:9px';check.textContent='检查 APK 更新';
                   check.onclick=function(){RandomToolboxNative.checkUpdate();};
@@ -229,7 +231,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if(typeof rtDialog==='function')rtDialog('恢复内置版本？','当前已下载的网页更新将被移除。',function(){RandomToolboxNative.rollback()});
                     else if(confirm('恢复内置版本？'))RandomToolboxNative.rollback();
                   };
-                  p.appendChild(title);p.appendChild(status);p.appendChild(check);p.appendChild(rollback);
+                  p.appendChild(title);p.appendChild(status);p.appendChild(diagnostic);p.appendChild(check);p.appendChild(rollback);
                   settingsView.appendChild(p);
                 }
                 var status=document.getElementById('rtUpdateStatus');
@@ -243,7 +245,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         js("var e=document.getElementById('rtUpdateStatus');if(e)e.textContent=" + JSONObject.quote(message) + ";");
     }
     private void checkForUpdates(boolean manual) {
-        if (checking) return;
+        if (checking) { if (manual) updateStatus("正在检查，请稍候…"); return; }
         checking = true;
         if (manual) updateStatus("正在检查 APK 更新…");
         worker.execute(() -> {
@@ -253,6 +255,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                 String link = manifest.optString("apkUrl", "");
                 String notes = manifest.optString("apkNotes", "发现新版本");
                 int current = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                String diag = "当前版本代码：" + current + "\\n服务器版本代码：" + latestCode + "\\n更新地址：" + MANIFEST_URLS[0] + "\\nAPK 地址：" + link;
+                js("var e=document.getElementById('rtUpdateDiagnostic');if(e)e.textContent=" + JSONObject.quote(diag) + ";");
                 if (latestCode > current && link.startsWith("https://github.com/kimizha/RandomToolbox/releases/")) {
                     main.post(() -> new android.app.AlertDialog.Builder(this)
                         .setTitle("发现随机工具箱新版本")
@@ -268,6 +272,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                 }
             } catch (Exception e) {
                 if (manual) updateStatus("检查失败：" + e.getMessage());
+                String diagError = "更新地址：" + MANIFEST_URLS[0] + "\\n检查异常：" + e.toString();
+                js("var e=document.getElementById('rtUpdateDiagnostic');if(e)e.textContent=" + JSONObject.quote(diagError) + ";");
             } finally { checking = false; }
         });
     }
