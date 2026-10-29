@@ -1,7 +1,7 @@
 {
   "webVersion": 12,
   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "apkVersionCode": 0,
-  "apkUrl": "",
-  "apkNotes": "修复账号注册与登录体验，优化应用稳定性。"
+  "apkVersionCode": 5,
+  "apkUrl": "https://github.com/kimizha/RandomToolbox/releases/download/dev-v1.6-code5/RandomToolbox-v1.6-debug.apk",
+  "apkNotes": "V1.6：摇一摇开关移至独立操作设置；已有账号提示改为约2.7秒后自动淡出的轻提示。"
 }
