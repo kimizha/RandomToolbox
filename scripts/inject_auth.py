@@ -59,7 +59,7 @@ function rtRender(page,note){rtPage=page;let r=rtElem('rtAuthRoot');if(!r)return
 function rtBack(){if(rtPage==='login'||rtPage==='security')rtClose();else if(rtPage==='register')rtRender('choose');else if(rtPage==='verify')rtRender('register');else rtRender('login')}
 function rtEye(id,b){let x=rtElem(id);x.type=x.type==='password'?'text':'password';b.textContent=x.type==='password'?'显示':'隐藏'}
 function rtMsg(m,error=true){let e=rtElem('rtMsg');if(e){e.textContent=m;e.style.color=error?'#b34458':'#7857dc'}}
-function rtErr(e){return e?.message||e?.error_description||String(e||'网络请求失败')}
+function rtErr(e){let m=e?.message||e?.error_description||String(e||'网络请求失败');if(/failed to fetch|networkerror|load failed/i.test(m)){let origin=location.origin||'(无来源)';return '网络请求失败。页面来源：'+origin+'；网络状态：'+(navigator.onLine?'在线':'离线')+'。请检查 CloudBase 安全域名、手机网络及 VPN。原始错误：'+m}return m}
 function rtCheck(r){if(r?.error)throw r.error;return r?.data}
 async function rtSession(){let r=await rtAuth.getSession();rtCheck(r);let d=r?.data||{};window.rtLoggedIn=!!d.session;rtUser=d.user||d.session?.user||null;rtSessionKnown=true;rtStatus();return window.rtLoggedIn}
 async function rtFinishLogin(result){rtCheck(result);if(!(await rtSession()))throw Error('未获得有效登录会话，请重试');rtClose();if(typeof toast==='function')toast('登录成功')}
