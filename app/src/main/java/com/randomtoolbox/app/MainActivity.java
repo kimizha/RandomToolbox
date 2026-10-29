@@ -200,23 +200,21 @@ public class MainActivity extends Activity implements SensorEventListener {
                 var settingsView=document.getElementById('settings');
                 if(!settingsView)return;
                 if(!document.getElementById('rtShakeRow')){
-                  var panel=document.createElement('div');panel.className='panel';panel.id='rtShakePanel';panel.style.marginBottom='14px';
-                  settingsView.appendChild(panel);
-                  if(panel){
-                    var title=document.createElement('h2');title.textContent='🎛️ 操作设置';title.style.fontSize='17px';panel.appendChild(title);
-                    var row=document.createElement('div');row.className='setting';row.id='rtShakeRow';
-                    var label=document.createElement('span');label.textContent='📳 摇一摇触发';
-                    var box=document.createElement('input');box.type='checkbox';box.id='rtShakeToggle';
-                    var state=JSON.parse(localStorage.getItem('rt_settings')||'{}');
-                    box.checked=state.shake!==false;
-                    box.onchange=function(){
-                      var st=JSON.parse(localStorage.getItem('rt_settings')||'{}');
-                      st.shake=box.checked;
-                      localStorage.setItem('rt_settings',JSON.stringify(st));
-                      if(typeof settings!=='undefined')settings.shake=box.checked;
-                    };
-                    row.appendChild(label);row.appendChild(box);panel.appendChild(row);
-                  }
+                  var vibe=document.getElementById('vibeToggle');
+                  var row=document.createElement('div');row.className='setting';row.id='rtShakeRow';
+                  var label=document.createElement('span');label.textContent='📳 摇一摇触发';
+                  var box=document.createElement('input');box.type='checkbox';box.id='rtShakeToggle';
+                  var state=JSON.parse(localStorage.getItem('rt_settings')||'{}');
+                  box.checked=state.shake!==false;
+                  box.onchange=function(){
+                    var st=JSON.parse(localStorage.getItem('rt_settings')||'{}');
+                    st.shake=box.checked;
+                    localStorage.setItem('rt_settings',JSON.stringify(st));
+                    if(typeof settings!=='undefined')settings.shake=box.checked;
+                  };
+                  row.appendChild(label);row.appendChild(box);
+                  if(vibe&&vibe.closest('.setting'))vibe.closest('.setting').insertAdjacentElement('afterend',row);
+
                 }
                 if(!document.getElementById('rtUpdatePanel')){
                   var p=document.createElement('div');p.className='panel';p.id='rtUpdatePanel';
