@@ -5,8 +5,58 @@ on:
   workflow_dispatch:
   push:
     branches: [main, dev/cloudbase-auth-integration]
+    paths-ignore:
+      - 'build-status/latest-dev-run.json'
 
 jobs:
+  publish-run-pointer:
+    name: Record latest development build run
+    if: github.ref == 'refs/heads/dev/cloudbase-auth-integration'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout development branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev/cloudbase-auth-integration
+          persist-credentials: true
+      - name: Save latest run information
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p build-status
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          record = {
+              'run_id': int(os.environ['RUN_ID']),
+              'run_attempt': int(os.environ['RUN_ATTEMPT']),
+              'run_url': f"https://github.com/{os.environ['REPOSITORY']}/actions/runs/{os.environ['RUN_ID']}",
+              'source_commit': os.environ['HEAD_SHA'],
+              'branch': 'dev/cloudbase-auth-integration',
+          }
+          Path('build-status/latest-dev-run.json').write_text(
+              json.dumps(record, indent=2, ensure_ascii=False) + '\\n', encoding='utf-8'
+          )
+          PY
+      - name: Push run pointer without triggering a new build
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-status/latest-dev-run.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore: record latest dev Actions run [skip ci]"
+          for attempt in 1 2 3; do
+            git pull --rebase origin dev/cloudbase-auth-integration
+            if git push origin HEAD:dev/cloudbase-auth-integration; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+
   build:
     runs-on: ubuntu-24.04
     permissions:
