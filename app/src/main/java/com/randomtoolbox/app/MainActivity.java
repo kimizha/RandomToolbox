@@ -117,9 +117,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                     updateStatus("已恢复内置网页版本 " + BUNDLED_WEB_VERSION);
                     return;
                 }
-                // Auth development build: keep the bundled page authoritative.
-                // Legacy HTML updates can overwrite the bundled authentication UI.
-                updateStatus("账号测试版 · 已暂停旧网页自动更新");
+                // Keep bundled auth UI authoritative until signed multi-file web updates are supported.
+                updateStatus("网页热更新暂未启用 · 可检查 APK 新版本");
+                checkForUpdates(false);
             }
         });
         webView.loadUrl(HOME_URL);
@@ -218,10 +218,10 @@ public class MainActivity extends Activity implements SensorEventListener {
                 }
                 if(!document.getElementById('rtUpdatePanel')){
                   var p=document.createElement('div');p.className='panel';p.id='rtUpdatePanel';
-                  var title=document.createElement('h2');title.style.fontSize='17px';title.textContent='☁️ 云端更新';
+                  var title=document.createElement('h2');title.style.fontSize='17px';title.textContent='☁️ 版本更新';
                   var status=document.createElement('p');status.className='hint';status.id='rtUpdateStatus';
                   var check=document.createElement('button');check.className='secondary';
-                  check.style.cssText='width:100%;margin-bottom:9px';check.textContent='检查更新';
+                  check.style.cssText='width:100%;margin-bottom:9px';check.textContent='检查 APK 更新';
                   check.onclick=function(){RandomToolboxNative.checkUpdate();};
                   var rollback=document.createElement('button');rollback.className='secondary';
                   rollback.style.width='100%';rollback.textContent='恢复内置版本';
@@ -243,8 +243,33 @@ public class MainActivity extends Activity implements SensorEventListener {
         js("var e=document.getElementById('rtUpdateStatus');if(e)e.textContent=" + JSONObject.quote(message) + ";");
     }
     private void checkForUpdates(boolean manual) {
-        if (manual) updateStatus("账号测试版已暂停网页更新，避免旧页面覆盖注册功能");
-        return;
+        if (checking) return;
+        checking = true;
+        if (manual) updateStatus("正在检查 APK 更新…");
+        worker.execute(() -> {
+            try {
+                JSONObject manifest = new JSONObject(new String(downloadWithFallback(MANIFEST_URLS, 32768), StandardCharsets.UTF_8));
+                int latestCode = manifest.optInt("apkVersionCode", 0);
+                String link = manifest.optString("apkUrl", "");
+                String notes = manifest.optString("apkNotes", "发现新版本");
+                int current = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                if (latestCode > current && link.startsWith("https://github.com/kimizha/RandomToolbox/releases/")) {
+                    main.post(() -> new android.app.AlertDialog.Builder(this)
+                        .setTitle("发现随机工具箱新版本")
+                        .setMessage(notes)
+                        .setNegativeButton("稍后再说", null)
+                        .setPositiveButton("前往下载", (dialog, which) -> {
+                            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link));
+                            try { startActivity(intent); } catch (Exception e) { notifyUser("无法打开下载页面"); }
+                        }).show());
+                    updateStatus("发现 APK 新版本 " + latestCode);
+                } else if (manual) {
+                    updateStatus("当前没有可用的 APK 更新 · 网页热更新暂未启用");
+                }
+            } catch (Exception e) {
+                if (manual) updateStatus("检查失败：" + e.getMessage());
+            } finally { checking = false; }
+        });
     }
     private void legacyCheckForUpdates(boolean manual) {
         if (checking) { if (manual) updateStatus("正在检查更新，请稍候…"); return; }
