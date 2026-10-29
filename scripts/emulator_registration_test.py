@@ -23,6 +23,18 @@ try:
     time.sleep(2)
     result=eval_js(ws,"({page:rtPage,visible:!document.getElementById('rtAuthRoot')?.hidden,contact:!!document.getElementById('rtContact')})",5)
     Path('emulator-results/registration-state.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
+    # Check that all registration inputs exist and validate locally.
+    checks = eval_js(ws, """(() => {
+      const ids = ['rtContact', 'rtNewPassword', 'rtConfirmPassword'];
+      const fields = ids.map(id => !!document.getElementById(id));
+      const button = !!document.querySelector('[onclick="rtRegister()"]');
+      return {fields, button, page: rtPage};
+    })()""", 6)
+    state = checks.get('result', {}).get('result', {}).get('value', {})
+    Path('emulator-results/registration-form-check.json').write_text(
+        json.dumps(state, ensure_ascii=False, indent=2))
+    if state.get('page') != 'register' or not all(state.get('fields', [])) or not state.get('button'):
+        raise AssertionError('Registration form is incomplete: ' + str(state))
     ws.close()
 except Exception as error:
     Path('emulator-results/registration-automation-error.txt').write_text(str(error))
