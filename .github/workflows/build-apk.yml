@@ -40,7 +40,7 @@ jobs:
               'branch': 'dev/cloudbase-auth-integration',
           }
           Path('build-status/latest-dev-run.json').write_text(
-              json.dumps(record, indent=2, ensure_ascii=False) + '\\n', encoding='utf-8'
+              json.dumps(record, indent=2, ensure_ascii=False) + chr(10), encoding='utf-8'
           )
           PY
       - name: Push run pointer without triggering a new build
