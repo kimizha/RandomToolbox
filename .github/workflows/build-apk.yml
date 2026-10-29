@@ -178,6 +178,8 @@ jobs:
       - name: Enable KVM for emulator
         run: |
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Install WebView debugging client
+        run: python3 -m pip install --user websocket-client
       - name: Run emulator and capture startup diagnostics
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -203,16 +205,42 @@ jobs:
             sleep 3
             adb shell screencap -p /sdcard/rt-settings.png
             adb pull /sdcard/rt-settings.png emulator-results/settings.png
-            # Account entry sits near the top of Settings, but WebView layout can vary.
-            # Use a series of screenshots for manual verification of each navigation step.
-            adb shell input tap 540 620
-            sleep 3
-            adb shell screencap -p /sdcard/rt-account.png
-            adb pull /sdcard/rt-account.png emulator-results/account.png
-            adb shell input tap 725 1050
-            sleep 2
-            adb shell screencap -p /sdcard/rt-register-choice.png
-            adb pull /sdcard/rt-register-choice.png emulator-results/register-choice.png
+            # Use WebView JavaScript through Chrome DevTools Protocol rather than
+            # guessing screen coordinates. ADB forwards the WebView debugging socket.
+            adb forward tcp:9222 localabstract:webview_devtools_remote_$(adb shell pidof com.randomtoolbox.app | tr -d '\r')
+            python3 - <<'PY'
+            import json, time, urllib.request
+            from pathlib import Path
+            import websocket
+
+            def targets():
+                return json.load(urllib.request.urlopen('http://127.0.0.1:9222/json', timeout=5))
+            def eval_js(ws, expr, request_id):
+                ws.send(json.dumps({'id':request_id,'method':'Runtime.evaluate','params':{'expression':expr,'returnByValue':True}}))
+                while True:
+                    response=json.loads(ws.recv())
+                    if response.get('id')==request_id:
+                        return response
+            try:
+                page=next(x for x in targets() if x.get('type')=='page')
+                ws=websocket.create_connection(page['webSocketDebuggerUrl'],timeout=10,suppress_origin=True)
+                eval_js(ws,"go('settings')",1)
+                time.sleep(2)
+                eval_js(ws,"document.getElementById('rtLoginButton')?.click()",2)
+                time.sleep(2)
+                eval_js(ws,"rtRender('choose')",3)
+                time.sleep(2)
+                eval_js(ws,"rtMode='email';rtRender('register')",4)
+                time.sleep(2)
+                result=eval_js(ws,"({page:rtPage,visible:!document.getElementById('rtAuthRoot')?.hidden,contact:!!document.getElementById('rtContact')})",5)
+                Path('emulator-results/registration-state.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
+                ws.close()
+            except Exception as error:
+                Path('emulator-results/registration-automation-error.txt').write_text(str(error))
+                raise
+            PY
+            adb shell screencap -p /sdcard/rt-register.png
+            adb pull /sdcard/rt-register.png emulator-results/register.png
             adb shell uiautomator dump /sdcard/rt-ui.xml || true
             adb pull /sdcard/rt-ui.xml emulator-results/ui.xml || true
             adb logcat -d -v time > emulator-results/logcat-after-account.txt
