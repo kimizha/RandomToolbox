@@ -1,4 +1,35 @@
+from pathlib import Path
+import os, json
 
+p=Path('app/src/main/assets/index.html')
+s=p.read_text(encoding='utf-8')
+key=os.environ.get('CLOUDBASE_PUBLISHABLE_KEY','').strip()
+if not key: raise SystemExit('Missing CLOUDBASE_PUBLISHABLE_KEY repository secret')
+if not key.startswith('eyJ'): raise SystemExit('Unexpected Publishable Key format')
+if 'RT_AUTH_FULLSCREEN_V2' in s: raise SystemExit('Account patch already present')
+
+def replace(old,new):
+ global s
+ if old not in s: raise SystemExit('HTML anchor not found: '+old[:65])
+ s=s.replace(old,new,1)
+
+replace('function openGame(type){party=',"function openGame(type){if(!window.rtLoggedIn){rtShowLogin('登录后才能开始趣味玩法');return}party=")
+replace('<section id="games" class="view">','<section id="games" class="view"><div id="rtGuestBanner" class="panel" style="padding:15px;margin-bottom:12px"><strong>🔒 登录后解锁趣味玩法</strong><p class="hint">游客可以继续使用随机工具和音乐播放器。</p><button class="primary" onclick="rtShowLogin()">登录 / 注册</button></div>')
+replace('<section id="settings" class="view">','<section id="settings" class="view"><div class="panel" style="padding:16px;margin-bottom:14px"><h2>👤 我的账号</h2><p class="hint" id="rtUserStatus">游客模式</p><button id="rtLoginButton" class="primary" onclick="rtShowLogin()">登录 / 注册</button><button id="rtLogoutButton" class="secondary" style="display:none;width:100%" onclick="rtLogout()">退出登录</button></div>')
+
+css=r'''<style id="rt-auth-style">
+.rt-auth{position:fixed;inset:0;z-index:999999;background:radial-gradient(ellipse at 85% 0%,#e9ddff 0%,transparent 55%),#f8f8fc;color:#242039;overflow:auto;overscroll-behavior:contain;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.rt-auth *{box-sizing:border-box}.rt-wrap{max-width:430px;margin:auto;padding:calc(env(safe-area-inset-top) + 18px) 26px calc(env(safe-area-inset-bottom) + 40px);min-height:100dvh}.rt-back{border:0;background:#ffffffaa;border-radius:14px;width:44px;height:44px;color:inherit;font-size:24px;cursor:pointer}.rt-head{margin:36px 0 28px}.rt-icon{display:grid;place-items:center;width:70px;height:70px;border-radius:23px;background:linear-gradient(135deg,#b58cff,#7452e9);color:white;font-size:34px;box-shadow:0 12px 28px #8156dd45;margin-bottom:25px}.rt-head h1{font-size:32px;letter-spacing:-1px;margin:0 0 9px;font-weight:800}.rt-head p{font-size:14px;color:#87839a;margin:0;line-height:1.7}.rt-field{margin:16px 0}.rt-field label{display:block;font-size:13px;font-weight:650;margin:0 0 9px;color:#59546b}.rt-input{display:flex;align-items:center;background:#fff;border:1px solid #ece9f3;border-radius:17px;padding:0 15px;min-height:57px;box-shadow:0 3px 12px #32226706}.rt-input:focus-within{border-color:#a187ef;box-shadow:0 0 0 3px #a187ef20}.rt-input input{border:0;outline:0;background:transparent;color:inherit;font-size:15px;width:100%;min-width:0}.rt-eye{border:0;background:transparent;color:#8a839d;font-size:19px;padding:7px}.rt-btn{border:0;border-radius:17px;min-height:54px;width:100%;font-size:16px;font-weight:750;cursor:pointer}.rt-primary{background:linear-gradient(115deg,#a17af4,#7856e6);color:white;box-shadow:0 10px 22px #7e5ad63b}.rt-primary:disabled{opacity:.5}.rt-link{background:transparent;border:0;color:#8059e4;font-weight:700;font-size:14px;cursor:pointer;padding:10px}.rt-center{text-align:center}.rt-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.rt-message{min-height:22px;font-size:13px;color:#b15b70;line-height:1.6;margin:12px 0}.rt-card{display:flex;align-items:center;gap:15px;width:100%;padding:19px 17px;border:1px solid #eee9f8;border-radius:21px;background:#fff;margin:14px 0;text-align:left;color:inherit;box-shadow:0 8px 22px #47347d09}.rt-card-icon{display:grid;place-items:center;width:50px;height:50px;border-radius:16px;background:#f1eaff;font-size:25px}.rt-card b{font-size:16px}.rt-card small{display:block;color:#918ba1;margin-top:6px;font-size:12px}.rt-card-arrow{margin-left:auto;color:#aaa3b8;font-size:23px}.rt-otp{margin-top:12px}.rt-help{color:#928b9f;font-size:12px;line-height:1.7;margin-top:18px}.rt-auth[hidden]{display:none!important}
+@media(prefers-color-scheme:dark){.rt-auth{background:radial-gradient(ellipse at 85% 0%,#382857 0%,transparent 55%),#15141d;color:#f7f4ff}.rt-back,.rt-input,.rt-card{background:#252331;border-color:#3b364c}.rt-head p,.rt-card small,.rt-field label{color:#aca6bc}.rt-input input{color:#fff}}
+</style>'''
+js=r'''
+/* RT_AUTH_FULLSCREEN_V2 */
+window.rtLoggedIn=false;
+let rtAuth=null,rtVerify=null,rtPage='login',rtKind='email',rtBusy=false,rtCountdown=null,rtCurrentUser=null;
+function rtAccountUI(){
+ const guest=!window.rtLoggedIn;
+ const b=document.getElementById('rtGuestBanner');if(b)b.style.display=guest?'block':'none';
+ const status=document.getElementById('rtUserStatus');if(status)status.textContent=guest?'游客模式 · 趣味玩法需要登录':('已登录 · '+(rtCurrentUser?.username||rtCurrentUser?.email||rtCurrentUser?.phone||'趣味玩法已解锁'));
  const a=document.getElementById('rtLoginButton');if(a)a.style.display=guest?'block':'none';
  const z=document.getElementById('rtLogoutButton');if(z)z.style.display=guest?'none':'block';
 }
@@ -88,4 +119,3 @@ replace('</head>',css+'</head>')
 replace('</script></body></html>',js+'\n</script></body></html>')
 p.write_text(s,encoding='utf-8')
 print('Injected fullscreen account UI')
-
