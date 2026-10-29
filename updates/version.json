@@ -1,7 +1,7 @@
 {
   "webVersion": 12,
   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "apkVersionCode": 8,
-  "apkUrl": "https://github.com/kimizha/RandomToolbox/releases/download/dev-v1.9-code8/RandomToolbox-v1.9-debug.apk",
-  "apkNotes": "V1.9：优化摇一摇图标；手机号注册和登录仅需验证码；保留邮箱原有方式和更新诊断功能。"
+  "apkVersionCode": 11,
+  "apkUrl": "https://github.com/kimizha/RandomToolbox/releases/download/dev-v2.2-code11/RandomToolbox-v2.2-debug.apk",
+  "apkNotes": "V2.2：设置页面名称精简，版本信息同步，新增 KK 开发者署名及创意投稿方式；保留此前更新修复与工具功能。"
 }
