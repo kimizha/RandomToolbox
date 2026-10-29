@@ -87,7 +87,7 @@ account_fallback = r'''<script>
     var btn=event.target.closest && event.target.closest('[onclick]');
     if(!btn)return;
     var action=btn.getAttribute('onclick')||'';
-    if(!/\\brtShowLogin\\s*\\(|\\brtShowSecurity\\s*\\(/.test(action))return;
+    if(!(action.includes('rtShowLogin(')||action.includes('rtShowSecurity(')))return;
     if(typeof window.rtShowLogin!=='function'){
       event.preventDefault();event.stopImmediatePropagation();
       showAccountError('账号界面未加载成功，请更新应用或联系开发者。');
