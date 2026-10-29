@@ -37,8 +37,8 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity implements SensorEventListener {
     private static final String HOME_URL = "https://appassets.androidplatform.net/assets/index.html";
     private static final String[] MANIFEST_URLS = {
-        "https://raw.githubusercontent.com/kimizha/RandomToolbox/main/updates/version.json",
-        "https://github.com/kimizha/RandomToolbox/raw/refs/heads/main/updates/version.json"
+        "https://raw.githubusercontent.com/kimizha/RandomToolbox/dev/cloudbase-auth-integration/updates/version.json",
+        "https://github.com/kimizha/RandomToolbox/raw/refs/heads/dev/cloudbase-auth-integration/updates/version.json"
     };
     private static final String[] HTML_URLS = {
         "https://raw.githubusercontent.com/kimizha/RandomToolbox/main/updates/index.html",
