@@ -1,7 +1,7 @@
 {
-  "run_id": 40931011629,
+  "run_id": 40931039556,
   "run_attempt": 1,
-  "run_url": "https://github.com/kimizha/RandomToolbox/actions/runs/40931011629",
-  "source_commit": "cfbefc588035e1b70eb4d66beee20d918ede2a70",
+  "run_url": "https://github.com/kimizha/RandomToolbox/actions/runs/40931039556",
+  "source_commit": "2a299726dcd6f11d4a8d5c8bfb791c15cdad7c72",
   "branch": "dev/cloudbase-auth-integration"
-}\n
+}
