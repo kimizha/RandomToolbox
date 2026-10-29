@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>随机工具箱 · 网络诊断</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f6f7fb;
+  padding: 24px;
+  color: #242039;
+}
+main {
+  max-width: 600px;
+  margin: 40px auto;
+  background: white;
+  padding: 25px;
+  border-radius: 20px;
+}
+button {
+  padding: 14px 20px;
+  background: #8059e4;
+  color: white;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+pre {
+  background: #f1f1f5;
+  padding: 15px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+</style>
+</head>
+<body>
+<main>
+  <h2>🔍 随机工具箱网络诊断</h2>
+  <p>测试 CloudBase SDK 加载及网络连接。</p>
+
+  <button onclick="runTest()">开始检测</button>
+
+  <h3>检测结果</h3>
+  <pre id="result">等待检测...</pre>
+</main>
+
+<script>
+const ENV_ID = "randomtoolbox-d5gg1p6rg1d2287eb";
+
+function log(message) {
+  document.getElementById("result").textContent +=
+    "\n" + message;
+}
+
+async function runTest() {
+  document.getElementById("result").textContent =
+    "开始检测...\n";
+
+  log("当前网页：" + location.origin);
+  log("CloudBase 环境：" + ENV_ID);
+
+  try {
+    log("1. 正在检查 SDK 地址...");
+
+    const response = await fetch(
+      "https://esm.sh/@cloudbase/js-sdk@3?bundle",
+      { method: "GET" }
+    );
+
+    log("SDK HTTP 状态：" + response.status);
+
+    if (!response.ok) {
+      throw new Error("SDK 地址访问失败");
+    }
+
+    log("2. SDK 地址访问成功");
+
+    log("3. 正在加载 CloudBase SDK...");
+
+    const mod = await import(
+      "https://esm.sh/@cloudbase/js-sdk@3?bundle"
+    );
+
+    const sdk = mod.default || mod;
+
+    log("SDK 加载成功");
+    log("SDK init 类型：" + typeof sdk.init);
+
+    log("初步检测完成。");
+
+  } catch (error) {
+    log("❌ 检测失败");
+    log("错误名称：" + error.name);
+    log("错误内容：" + error.message);
+  }
+}
+</script>
+</body>
+</html>
