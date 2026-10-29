@@ -1,7 +1,7 @@
 {
   "webVersion": 12,
   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "apkVersionCode": 6,
-  "apkUrl": "https://github.com/kimizha/RandomToolbox/releases/download/dev-v1.7-code6/RandomToolbox-v1.7-debug.apk",
-  "apkNotes": "V1.7：摇一摇开关移至震动反馈与工具音效之间；已有账号提示改为底部显示约4.7秒；简化手机号与验证码提示。"
+  "apkVersionCode": 8,
+  "apkUrl": "https://github.com/kimizha/RandomToolbox/releases/download/dev-v1.9-code8/RandomToolbox-v1.9-debug.apk",
+  "apkNotes": "V1.9：优化摇一摇图标；手机号注册和登录仅需验证码；保留邮箱原有方式和更新诊断功能。"
 }
