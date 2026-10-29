@@ -115,7 +115,8 @@ async function rtStartAuth(){
 rtAccountUI();rtStartAuth();
 '''
 js=js.replace('__RT_PUBLISHABLE_KEY__',json.dumps(key))
-replace('</head>',css+'</head>') replace('<script>', '<script src="cloudbase-sdk.js"></script><script>')
+replace('</head>',css+'</head>')
+replace('<script>', '<script src="cloudbase-sdk.js"></script><script>')
 replace('</script></body></html>',js+'\n</script></body></html>')
 p.write_text(s,encoding='utf-8')
 print('Injected fullscreen account UI')
