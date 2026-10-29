@@ -74,7 +74,32 @@ rtStatus();setTimeout(rtStartAuth,250);
 '''.replace('__RT_KEY__', json.dumps(key))
 replace('</head>', css + '</head>')
 replace('<script>', '<script src="cloudbase-sdk.js"></script><script>')
+# Keep account navigation available even when the CloudBase SDK is offline.
+# A separate listener makes failures visible instead of silently ignoring taps.
+account_fallback = r'''<script>
+(function(){
+  function showAccountError(message){
+    var box=document.getElementById('rtAccountError');
+    if(!box){box=document.createElement('div');box.id='rtAccountError';box.setAttribute('role','alert');box.style.cssText='position:fixed;z-index:2147483647;left:16px;right:16px;bottom:24px;padding:16px;border-radius:14px;background:#fff1f2;color:#881337;box-shadow:0 6px 30px #0003;font-size:14px';document.body.appendChild(box)}
+    box.textContent=message;
+  }
+  document.addEventListener('click',function(event){
+    var btn=event.target.closest && event.target.closest('[onclick]');
+    if(!btn)return;
+    var action=btn.getAttribute('onclick')||'';
+    if(!/\\brtShowLogin\\s*\\(|\\brtShowSecurity\\s*\\(/.test(action))return;
+    if(typeof window.rtShowLogin!=='function'){
+      event.preventDefault();event.stopImmediatePropagation();
+      showAccountError('账号界面未加载成功，请更新应用或联系开发者。');
+    }
+  },true);
+  window.addEventListener('error',function(event){
+    if(event && event.message && /rtShowLogin|rtShowSecurity|rtRender|rtLogin/.test(event.message))showAccountError('账号功能运行错误：'+event.message);
+  });
+})();
+</script>'''
 replace('</script></body></html>', '</script><script>' + js + '\n</script></body></html>')
+replace('</body></html>', account_fallback + '</body></html>')
 p.write_text(s, encoding='utf-8')
 print('Injected RT_AUTH_NATIVE_V3 account UI')
 
