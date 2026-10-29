@@ -1,14 +1,14 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>随机工具箱 · CloudBase 邮箱注册诊断</title>
+<meta name="theme-color" content="#f6f7fb">
+<title>随机工具箱 · CloudBase 账号测试</title>
 
 <style>
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -28,14 +28,13 @@ main {
   box-shadow: 0 8px 35px rgba(0,0,0,.05);
 }
 
-h2 {
-  margin-top: 0;
-}
+h2 { margin-top: 0; }
 
 .subtitle {
   color: #777;
   font-size: 14px;
   margin-bottom: 25px;
+  line-height: 1.7;
 }
 
 label {
@@ -56,9 +55,7 @@ input {
   outline: none;
 }
 
-input:focus {
-  border-color: #8059e4;
-}
+input:focus { border-color: #8059e4; }
 
 button {
   display: block;
@@ -84,6 +81,12 @@ button:disabled {
   cursor: not-allowed;
 }
 
+hr {
+  border: 0;
+  border-top: 1px solid #eee;
+  margin: 24px 0;
+}
+
 pre {
   background: #f4f4f8;
   padding: 15px;
@@ -102,116 +105,141 @@ pre {
   margin-top: 20px;
 }
 
-.success {
-  color: #16864b;
+.status {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #7045cf;
+  margin-top: 12px;
 }
-
 </style>
 </head>
 
 <body>
-
 <main>
+  <h2>🔐 CloudBase 账号测试</h2>
 
-<h2>🔍 CloudBase 注册诊断</h2>
+  <p class="subtitle">
+    随机工具箱 · 邮箱注册、验证码验证与登录诊断
+  </p>
 
-<p class="subtitle">
-随机工具箱 · HTTPS 验证码网络测试
-</p>
+  <label for="publishableKey">客户端 Publishable Key</label>
+  <input
+    id="publishableKey"
+    type="password"
+    placeholder="输入 CloudBase Publishable Key"
+    autocomplete="off"
+  >
 
-<label>客户端 Publishable Key</label>
+  <label for="email">测试邮箱</label>
+  <input
+    id="email"
+    type="email"
+    placeholder="输入收到验证码的邮箱"
+    autocomplete="email"
+  >
 
-<input
-  id="publishableKey"
-  type="password"
-  placeholder="输入 CloudBase Publishable Key"
-  autocomplete="off"
->
+  <label for="password">测试密码</label>
+  <input
+    id="password"
+    type="password"
+    placeholder="输入注册时使用的密码"
+    autocomplete="new-password"
+  >
 
-<label>测试邮箱</label>
+  <button class="secondary" id="connectionBtn"
+    onclick="testConnection()">
+    ① 检测 CloudBase SDK
+  </button>
 
-<input
-  id="email"
-  type="email"
-  placeholder="输入自己的邮箱"
-  autocomplete="off"
->
+  <button id="signupBtn" onclick="testSignup()">
+    ② 注册并发送邮箱验证码
+  </button>
 
-<label>测试密码</label>
+  <hr>
 
-<input
-  id="password"
-  type="password"
-  placeholder="至少 8 位，建议使用全新测试密码"
-  autocomplete="new-password"
->
+  <h3>③ 验证邮箱</h3>
 
-<button
-  class="secondary"
-  onclick="testConnection()"
->
-① 检测 CloudBase SDK
-</button>
+  <label for="otp">邮箱验证码</label>
+  <input
+    id="otp"
+    type="text"
+    placeholder="输入邮箱收到的验证码"
+    autocomplete="one-time-code"
+    inputmode="numeric"
+  >
 
-<button
-  onclick="testSignup()"
->
-② 测试发送邮箱验证码
-</button>
+  <button id="verifyBtn" class="secondary"
+    onclick="verifyEmail()" disabled>
+    验证验证码并完成注册
+  </button>
 
-<h3>检测结果</h3>
+  <hr>
 
-<pre id="result">等待检测...</pre>
+  <h3>④ 测试登录</h3>
 
-<p class="tip">
-⚠️ 本页面仅用于临时诊断。<br>
-Publishable Key、邮箱和密码不会被写入 GitHub 代码。<br>
-点击第二个按钮会发起真实注册请求，可能发送验证码或创建账号。<br>
-请使用专门的测试密码，不要使用常用账号密码。<br>
-不要将密码、验证码或完整网络请求内容发送给他人。
-</p>
+  <button id="loginBtn" onclick="testLogin()">
+    使用邮箱和密码登录
+  </button>
 
+  <p class="status" id="status">
+    请先检测 SDK，或使用注册按钮开始。
+  </p>
+
+  <h3>检测结果</h3>
+  <pre id="result">等待检测...</pre>
+
+  <p class="tip">
+    本页面仅用于临时诊断。请使用专门的测试账号和密码。
+    Publishable Key 是客户端密钥，不要将其与服务端密钥混淆。
+    不要把密码、验证码或完整密钥发送给他人。
+    登录成功后请勿在公共设备上保留登录状态。
+  </p>
 </main>
 
 <script>
+"use strict";
 
-const ENV_ID =
-  "randomtoolbox-d5gg1p6rg1d2287eb";
-
+const ENV_ID = "randomtoolbox-d5gg1p6rg1d2287eb";
 const REGION = "ap-shanghai";
 
 let sdk = null;
-
+let authInstance = null;
+let pendingSignup = null;
 let busy = false;
 
+const $ = id => document.getElementById(id);
+
 function log(message) {
-  const box = document.getElementById("result");
-  box.textContent += "\n" + message;
+  $("result").textContent += "\n" + message;
 }
 
 function reset() {
-  document.getElementById("result").textContent =
-    "开始检测...\n";
+  $("result").textContent = "开始检测...\n";
+}
+
+function setStatus(message) {
+  $("status").textContent = message;
+}
+
+function setBusy(value) {
+  busy = value;
+
+  [
+    "connectionBtn",
+    "signupBtn",
+    "verifyBtn",
+    "loginBtn"
+  ].forEach(id => {
+    $(id).disabled = value ||
+      (id === "verifyBtn" && !pendingSignup);
+  });
 }
 
 function showError(error) {
-
-  log("❌ 请求失败");
-
-  log(
-    "错误类型: " +
-    (error?.name || "未知")
-  );
-
-  log(
-    "错误代码: " +
-    (error?.code || "无")
-  );
-
-  log(
-    "错误信息: " +
-    (error?.message || String(error))
-  );
+  log("❌ 操作失败");
+  log("错误类型: " + (error?.name || "未知"));
+  log("错误代码: " + (error?.code || "无"));
+  log("错误信息: " + (error?.message || String(error)));
 
   if (error?.status) {
     log("HTTP 状态: " + error.status);
@@ -221,14 +249,10 @@ function showError(error) {
     log("状态代码: " + error.statusCode);
   }
 
-  log(
-    "如显示 Failed to fetch，请检查 F12 中的 Network 和 Console。"
-  );
-
+  setStatus("操作失败，请查看上方错误信息。");
 }
 
 async function loadSDK() {
-
   if (sdk) return sdk;
 
   log("正在加载 CloudBase SDK...");
@@ -244,162 +268,114 @@ async function loadSDK() {
   }
 
   log("SDK: 已加载");
-
   return sdk;
 }
 
 function getKey() {
-
-  const key =
-    document.getElementById("publishableKey")
-      .value.trim();
+  const key = $("publishableKey").value.trim();
 
   if (!key) {
-    throw new Error(
-      "请先填写客户端 Publishable Key"
-    );
+    throw new Error("请先填写客户端 Publishable Key");
   }
 
   return key;
 }
 
 async function createAuth() {
+  if (authInstance) return authInstance;
 
   const cloudbase = await loadSDK();
 
   const app = cloudbase.init({
-
     env: ENV_ID,
-
     region: REGION,
-
     accessKey: getKey()
-
   });
 
   log("初始化: 已完成");
 
-  const auth =
-    typeof app.auth === "function"
-      ? app.auth()
-      : app.auth;
+  const auth = typeof app.auth === "function"
+    ? app.auth()
+    : app.auth;
 
   if (!auth) {
     throw new Error("认证对象创建失败");
   }
 
   log("认证对象: 已创建");
+  log("signUp 方法: " + typeof auth.signUp);
 
-  log(
-    "signUp 方法: " +
-    typeof auth.signUp
-  );
-
+  authInstance = auth;
   return auth;
 }
 
 async function testConnection() {
-
   if (busy) return;
 
-  busy = true;
+  setBusy(true);
   reset();
 
   try {
-
     const auth = await createAuth();
 
-    if (
-      typeof auth.signUp !== "function"
-    ) {
-      throw new Error(
-        "signUp 注册方法不存在"
-      );
+    if (typeof auth.signUp !== "function") {
+      throw new Error("signUp 注册方法不存在");
     }
 
-    log("SDK 和注册方法检查通过");
-    log("注意：尚未发送网络注册请求");
+    log("✅ SDK 和注册方法检查通过");
+    log("注意：本次没有发送注册请求。");
+    setStatus("SDK 初始化成功。");
 
   } catch (error) {
-
     showError(error);
-
   } finally {
-
-    busy = false;
-
+    setBusy(false);
   }
-
 }
 
 async function testSignup() {
-
   if (busy) return;
 
-  busy = true;
+  setBusy(true);
   reset();
 
   try {
-
-    const email =
-      document.getElementById("email")
-        .value.trim();
-
-    const password =
-      document.getElementById("password")
-        .value;
+    const email = $("email").value.trim();
+    const password = $("password").value;
 
     if (!email || !email.includes("@")) {
-      throw new Error(
-        "请输入正确的测试邮箱"
-      );
+      throw new Error("请输入正确的测试邮箱");
     }
 
     if (password.length < 8) {
-      throw new Error(
-        "测试密码至少需要 8 位"
-      );
+      throw new Error("测试密码至少需要 8 位");
     }
 
     const auth = await createAuth();
 
-    if (
-      typeof auth.signUp !== "function"
-    ) {
-      throw new Error(
-        "signUp 方法不存在"
-      );
+    if (typeof auth.signUp !== "function") {
+      throw new Error("signUp 方法不存在");
     }
+
+    // 新注册请求开始时，清除之前保存的待验证流程。
+    pendingSignup = null;
+    $("verifyBtn").disabled = true;
 
     log("正在调用 signUp...");
     log("正在发送邮箱注册请求...");
 
-    const params = {
-
-      email: email,
-
-      password: password
-
-    };
-
     const response = await Promise.race([
-
-      auth.signUp(params),
-
+      auth.signUp({
+        email: email,
+        password: password
+      }),
       new Promise((_, reject) => {
-
         setTimeout(() => {
-
-          reject(
-            new Error(
-              "请求超过 20 秒，网络可能不可达"
-            )
-          );
-
+          reject(new Error(
+            "请求超过 20 秒，网络可能不可达"
+          ));
         }, 20000);
-
       })
-
     ]);
 
     if (response?.error) {
@@ -408,36 +384,128 @@ async function testSignup() {
 
     log("✅ signUp 请求成功返回");
 
-    if (
-      response?.data?.verifyOtp
-    ) {
+    const data = response?.data;
 
-      log("验证码验证流程已返回");
-      log("请检查测试邮箱");
+    if (data && typeof data.verifyOtp === "function") {
+      pendingSignup = data;
+      $("verifyBtn").disabled = false;
 
+      log("验证码验证方法已返回");
+      log("请检查邮箱并输入验证码。");
+
+      setStatus("已发起注册，请输入邮箱验证码。");
     } else {
+      log("响应中没有找到 data.verifyOtp 方法。");
+      log("请检查 SDK 返回结构，暂时无法完成验证码验证。");
 
-      log(
-        "请求已返回，但没有检测到 verifyOtp"
-      );
-
+      setStatus("注册请求已返回，但验证流程未能确认。");
     }
 
-    log("测试结束");
-
   } catch (error) {
-
     showError(error);
-
   } finally {
-
-    busy = false;
-
+    setBusy(false);
   }
-
 }
 
-</script>
+async function verifyEmail() {
+  if (busy) return;
 
+  if (!pendingSignup) {
+    setStatus("请先发起注册请求，获取验证码验证流程。");
+    return;
+  }
+
+  setBusy(true);
+  reset();
+
+  try {
+    const token = $("otp").value.trim();
+
+    if (!token) {
+      throw new Error("请输入邮箱收到的验证码");
+    }
+
+    log("正在提交邮箱验证码...");
+
+    const result = await pendingSignup.verifyOtp({
+      token: token
+    });
+
+    if (result?.error) {
+      throw result.error;
+    }
+
+    log("✅ 验证请求成功返回");
+    log("请根据返回结果确认邮箱验证是否完成。");
+
+    if (result?.data) {
+      log("验证接口已返回 data。");
+    }
+
+    pendingSignup = null;
+    $("verifyBtn").disabled = true;
+
+    setStatus(
+      "验证码验证请求已成功返回。接下来可以测试登录。"
+    );
+
+  } catch (error) {
+    showError(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function testLogin() {
+  if (busy) return;
+
+  setBusy(true);
+  reset();
+
+  try {
+    const email = $("email").value.trim();
+    const password = $("password").value;
+
+    if (!email || !email.includes("@")) {
+      throw new Error("请输入注册时使用的邮箱");
+    }
+
+    if (!password) {
+      throw new Error("请输入注册时使用的密码");
+    }
+
+    const auth = await createAuth();
+
+    if (typeof auth.signInWithPassword !== "function") {
+      throw new Error(
+        "当前 SDK 没有 signInWithPassword 方法，" +
+        "请核对当前版本的登录 API。"
+      );
+    }
+
+    log("正在调用邮箱密码登录...");
+
+    const response = await auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (response?.error) {
+      throw response.error;
+    }
+
+    log("✅ 登录请求成功返回");
+    log("登录接口没有返回 error。");
+
+    setStatus("登录请求成功。请确认账号已完成邮箱验证。");
+
+  } catch (error) {
+    showError(error);
+  } finally {
+    setBusy(false);
+  }
+}
+</script>
 </body>
 </html>
