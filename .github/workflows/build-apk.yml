@@ -11,6 +11,9 @@ on:
 jobs:
   publish-run-pointer:
     name: Record latest development build run
+    concurrency:
+      group: randomtoolbox-dev-run-pointer
+      cancel-in-progress: false
     if: github.ref == 'refs/heads/dev/cloudbase-auth-integration'
     runs-on: ubuntu-24.04
     permissions:
