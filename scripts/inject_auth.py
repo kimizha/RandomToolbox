@@ -76,3 +76,5 @@ replace('<script>', '<script src="cloudbase-sdk.js"></script><script>')
 replace('</script></body></html>', js + '\n</script></body></html>')
 p.write_text(s, encoding='utf-8')
 print('Injected RT_AUTH_NATIVE_V3 account UI')
+
+# GitHub connector write access verification (dev branch only).
