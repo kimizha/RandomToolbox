@@ -107,3 +107,52 @@ jobs:
           name: RandomToolbox-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+  emulator-smoke-test:
+    name: Android emulator launch smoke test
+    if: github.ref == 'refs/heads/dev/cloudbase-auth-integration'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Download APK from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: RandomToolbox-debug-apk
+          path: apk
+      - name: Enable KVM for emulator
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Run emulator and capture startup diagnostics
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_4
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            mkdir -p emulator-results
+            adb install -r apk/app-debug.apk
+            adb logcat -c
+            adb shell am start -n com.randomtoolbox.app/.MainActivity
+            sleep 25
+            adb shell screencap -p /sdcard/rt-startup.png
+            adb pull /sdcard/rt-startup.png emulator-results/startup.png
+            adb logcat -d -v time > emulator-results/logcat.txt
+            adb shell dumpsys activity activities > emulator-results/activity.txt
+            adb shell pidof com.randomtoolbox.app > emulator-results/pid.txt
+            test -s emulator-results/pid.txt
+      - name: Upload emulator screenshot and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RandomToolbox-emulator-diagnostics
+          path: emulator-results/
+          if-no-files-found: warn
+          retention-days: 7
