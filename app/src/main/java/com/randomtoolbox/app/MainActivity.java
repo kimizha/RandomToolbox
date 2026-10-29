@@ -334,7 +334,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         throw new IOException("两个更新地址均失败（" + errors + "）", last);
     }
     private static byte[] download(String address, int maxBytes) throws IOException {
-        HttpURLConnection conn = (HttpURLConnection) new URL(address).openConnection();
+        HttpURLConnection conn = (HttpURLConnection) new URL(address + (address.contains("?") ? "&" : "?") + "rt_ts=" + System.currentTimeMillis()).openConnection();
+        conn.setUseCaches(false);
+        conn.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0");
+        conn.setRequestProperty("Pragma", "no-cache");
         conn.setConnectTimeout(9000); conn.setReadTimeout(12000);
         conn.setInstanceFollowRedirects(true);
         conn.setRequestProperty("Accept", "application/json, text/html, */*");
