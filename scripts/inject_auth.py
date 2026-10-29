@@ -106,7 +106,7 @@ function rtResend(){rtVerify=null;rtRender('register');rtMessage('请再次提�
 async function rtLogout(){if(!rtAuth)return;if(rtBusy)return;try{rtCheck(await rtAuth.signOut());window.rtLoggedIn=false;rtCurrentUser=null;rtAccountUI();if(typeof toast==='function')toast('已退出登录')}catch(e){if(typeof toast==='function')toast(rtError(e))}}
 async function rtStartAuth(){
  try{
- const mod=await import('https://esm.sh/@cloudbase/js-sdk@3?bundle');const sdk=mod.default||mod;
+ const sdk=window.RTCloudbaseSDK; if(!sdk)throw Error('本地 CloudBase SDK 加载失败');
  const app=sdk.init({env:'randomtoolbox-d5gg1p6rg1d2287eb',region:'ap-shanghai',accessKey:__RT_PUBLISHABLE_KEY__});
  rtAuth=typeof app.auth==='function'?app.auth():app.auth;
  const r=await rtAuth.getSession();rtCheck(r);window.rtLoggedIn=!!r?.data?.session;rtCurrentUser=r?.data?.user||null;rtAccountUI();
@@ -115,7 +115,7 @@ async function rtStartAuth(){
 rtAccountUI();rtStartAuth();
 '''
 js=js.replace('__RT_PUBLISHABLE_KEY__',json.dumps(key))
-replace('</head>',css+'</head>')
+replace('</head>',css+'</head>') replace('<script>', '<script src="cloudbase-sdk.js"></script><script>')
 replace('</script></body></html>',js+'\n</script></body></html>')
 p.write_text(s,encoding='utf-8')
 print('Injected fullscreen account UI')
