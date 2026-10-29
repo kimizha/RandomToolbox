@@ -49,13 +49,13 @@ function rtRender(page,note){
  if(page==='login'){
  html+=head('✦','欢迎回来','登录随机工具箱，解锁更多有趣玩法')+input('rtIdentifier','账号','用户名 / 邮箱 / 手机号','text','autocomplete="username"')+input('rtPassword','密码','请输入登录密码','password','autocomplete="current-password"')+'<div class="rt-row"><span></span><button class="rt-link" onclick="rtRender(\'forgot\')">忘记密码？</button></div><button class="rt-btn rt-primary" onclick="rtLogin()">登 录</button><p class="rt-center" style="margin-top:25px;color:#8e879c">还没有账号？<button class="rt-link" onclick="rtRender(\'choose\')">立即注册 →</button></p>';
  }else if(page==='choose'){
- html+=head('✧','创建新账号','选择适合你的方式，开启一点新惊喜')+[['phone','📱','手机号注册','通过短信验证码创建账号'],['email','✉️','邮箱注册','通过邮箱验证码创建账号'],['username','👤','账号密码注册','设置用户名，使用邮箱验证身份']].map(([k,ic,t,d])=>`<button class="rt-card" onclick="rtChoose('${k}')"><span class="rt-card-icon">${ic}</span><span><b>${t}</b><small>${d}</small></span><span class="rt-card-arrow">›</span></button>`).join('')+'<p class="rt-center" style="margin-top:28px">已有账号？<button class="rt-link" onclick="rtRender(\'login\')">返回登录</button></p>';
+ html+=head('✧','创建新账号','选择适合你的方式，开启一点新惊喜')+[['phone','📱','手机号注册','通过短信验证码创建账号'],['email','✉️','邮箱注册','通过邮箱验证码创建账号'],['username','👤','账号密码注册','只需用户名和密码，无需绑定联系方式']].map(([k,ic,t,d])=>`<button class="rt-card" onclick="rtChoose('${k}')"><span class="rt-card-icon">${ic}</span><span><b>${t}</b><small>${d}</small></span><span class="rt-card-arrow">›</span></button>`).join('')+'<p class="rt-center" style="margin-top:28px">已有账号？<button class="rt-link" onclick="rtRender(\'login\')">返回登录</button></p>';
  }else if(page==='register'){
  const isPhone=rtKind==='phone',isUser=rtKind==='username';
- html+=head(isPhone?'📱':isUser?'👤':'✉️',isPhone?'手机号注册':isUser?'账号密码注册':'邮箱注册',isUser?'为保证账号安全，需要邮箱验证码完成注册':'完成身份验证后，即可使用趣味玩法');
+ html+=head(isPhone?'📱':isUser?'👤':'✉️',isPhone?'手机号注册':isUser?'账号密码注册':'邮箱注册',isUser?'无需邮箱或手机号，注册后建议绑定找回方式':'完成身份验证后，即可使用趣味玩法');
  if(isUser)html+=input('rtName','用户名','5–24 位英文、数字或允许的符号','text','autocomplete="username"');
- html+=input('rtContact',isPhone?'手机号':'邮箱地址',isPhone?'例如 +8613800138000':'请输入邮箱地址',isPhone?'tel':'email',isPhone?'autocomplete="tel"':'autocomplete="email"');
- html+=input('rtNewPassword','设置密码','请设置安全密码','password','autocomplete="new-password"')+input('rtConfirmPassword','确认密码','再次输入密码','password','autocomplete="new-password"')+'<button class="rt-btn rt-primary" onclick="rtRegister()">发送验证码</button><p class="rt-help">注册时将向你的手机号或邮箱发送验证码。用户名注册也需要验证邮箱。</p>';
+ if(!isUser)html+=input('rtContact',isPhone?'手机号':'邮箱地址',isPhone?'例如 +8613800138000':'请输入邮箱地址',isPhone?'tel':'email',isPhone?'autocomplete="tel"':'autocomplete="email"');
+ html+=input('rtNewPassword','设置密码','请设置安全密码','password','autocomplete="new-password"')+input('rtConfirmPassword','确认密码','再次输入密码','password','autocomplete="new-password"')+'<button class="rt-btn rt-primary" onclick="rtRegister()">'+(isUser?'创建账号':'发送验证码')+'</button><p class="rt-help">'+(isUser?'请妥善保存密码。未绑定邮箱或手机号时，忘记密码可能无法找回；注册后可在账号安全中心绑定。':'注册时将向你的手机号或邮箱发送验证码。')+'</p>';
  }else if(page==='verify'){
  html+=head('✉','验证身份','验证码已发送，请检查短信或邮箱')+input('rtOtp','验证码','输入收到的验证码','text','inputmode="numeric" autocomplete="one-time-code"')+'<button class="rt-btn rt-primary" onclick="rtFinishRegister()">验证并完成注册</button><p class="rt-center"><button id="rtResend" class="rt-link" onclick="rtResend()">重新发送验证码</button></p>';
  }else if(page==='forgot'){
@@ -83,15 +83,20 @@ async function rtLogin(){
 }
 async function rtRegister(){
  if(rtBusy)return;if(!rtAuth)return rtMessage('注册服务尚未连接，请检查网络');
- const contact=document.getElementById('rtContact').value.trim(),password=document.getElementById('rtNewPassword').value,confirm=document.getElementById('rtConfirmPassword').value;
+ const contact=document.getElementById('rtContact')?.value.trim()||'',password=document.getElementById('rtNewPassword').value,confirm=document.getElementById('rtConfirmPassword').value;
  const name=rtKind==='username'?document.getElementById('rtName').value.trim():null;
  if(rtKind==='phone'&&!/^\+\d{8,15}$/.test(contact))return rtMessage('手机号请使用国际格式，例如 +8613800138000');
- if(rtKind!=='phone'&&!/^\S+@\S+\.\S+$/.test(contact))return rtMessage('请输入有效邮箱');
+ if(rtKind==='email'&&!/^\S+@\S+\.\S+$/.test(contact))return rtMessage('请输入有效邮箱');
  if(name&&!/^[A-Za-z0-9][A-Za-z0-9_.:+@-]{4,23}$/.test(name))return rtMessage('用户名须为 5–24 位，且以字母或数字开头');
  if(password.length<8)return rtMessage('密码至少 8 位');if(password!==confirm)return rtMessage('两次密码不一致');
  rtBusy=true;try{
- const params={...(rtKind==='phone'?{phone:contact}:{email:contact}),password,...(name?{username:name}:{})};
+ const params={...(rtKind==='phone'?{phone:contact}:rtKind==='email'?{email:contact}:{}),password,...(name?{username:name}:{})};
  const result=await rtAuth.signUp(params);const data=rtCheck(result);
+ if(rtKind==='username'){
+   if(typeof data?.verifyOtp==='function')throw Error('当前环境仍要求验证码，请检查用户名密码注册配置');
+   try{await rtFinishAuth(result)}catch(e){await rtFinishAuth(await rtAuth.signInWithPassword({username:name,password}))}
+   return;
+ }
  if(typeof data?.verifyOtp!=='function')throw Error('未收到验证码验证接口，请检查登录方式配置');
  rtVerify=data.verifyOtp;rtRender('verify');rtTimer();
  }catch(e){rtMessage(rtError(e))}finally{rtBusy=false}
