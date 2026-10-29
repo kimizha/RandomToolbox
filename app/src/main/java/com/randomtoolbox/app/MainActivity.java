@@ -20,6 +20,8 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.util.Base64;
 import android.view.View;
 import org.json.JSONObject;
@@ -33,7 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity implements SensorEventListener {
-    private static final String HOME_URL = "file:///android_asset/index.html";
+    private static final String HOME_URL = "https://appassets.androidplatform.net/assets/index.html";
     private static final String[] MANIFEST_URLS = {
         "https://raw.githubusercontent.com/kimizha/RandomToolbox/main/updates/version.json",
         "https://github.com/kimizha/RandomToolbox/raw/refs/heads/main/updates/version.json"
@@ -88,6 +90,24 @@ public class MainActivity extends Activity implements SensorEventListener {
         webView.setWebChromeClient(new WebChromeClient());
         webView.addJavascriptInterface(new NativeBridge(), "RandomToolboxNative");
         webView.setWebViewClient(new WebViewClient() {
+            @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                android.net.Uri uri = request.getUrl();
+                if (!"https".equals(uri.getScheme()) || !"appassets.androidplatform.net".equals(uri.getHost())) return null;
+                String path = uri.getPath();
+                if (path == null || !path.startsWith("/assets/")) return null;
+                String asset = path.substring(8);
+                if (asset.isEmpty() || asset.startsWith("/") || asset.contains("..") || asset.indexOf(92) >= 0)
+                    return new WebResourceResponse("text/plain", "UTF-8", new ByteArrayInputStream(new byte[0]));
+                try {
+                    String mime = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(android.webkit.MimeTypeMap.getFileExtensionFromUrl(asset));
+                    if (asset.endsWith(".js")) mime = "application/javascript";
+                    if (asset.endsWith(".html")) mime = "text/html";
+                    if (mime == null) mime = "application/octet-stream";
+                    return new WebResourceResponse(mime, "UTF-8", getAssets().open(asset));
+                } catch (IOException e) {
+                    return new WebResourceResponse("text/plain", "UTF-8", new ByteArrayInputStream(new byte[0]));
+                }
+            }
             @Override public void onPageFinished(WebView view, String url) {
                 if (!HOME_URL.equals(url) || pagePrepared) return;
                 pagePrepared = true;
