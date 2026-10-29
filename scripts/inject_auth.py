@@ -44,7 +44,17 @@ function rtStatus(){
 }
 function rtShowLogin(note){if(window.rtLoggedIn)return rtShowSecurity();let r=rtElem('rtAuthRoot');if(!r){r=document.createElement('div');r.id='rtAuthRoot';r.className='rt-auth';document.body.appendChild(r)}r.hidden=false;rtRender('login',note)}
 function rtClose(){const r=rtElem('rtAuthRoot');if(r)r.hidden=true;rtVerify=null}
-function rtExistingAccountDialog(){const title='检测到已有账号';const message='该手机号或邮箱已经注册，已自动登录原账号，无需重复注册。';if(typeof rtDialog==='function'){rtDialog(title,message,()=>{});return}window.alert(title+'\n\n'+message)}
+function rtExistingAccountDialog(){
+ const old=document.getElementById('rtExistingAccountModal');if(old)old.remove();
+ const cover=document.createElement('div');cover.id='rtExistingAccountModal';
+ cover.style.cssText='position:fixed;inset:0;z-index:2147483646;background:rgba(10,10,25,.55);display:flex;align-items:center;justify-content:center;padding:24px';
+ const box=document.createElement('div');box.setAttribute('role','alertdialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-labelledby','rtExistingTitle');
+ box.style.cssText='width:100%;max-width:360px;border-radius:22px;background:#fff;color:#20202b;padding:26px 22px 20px;box-shadow:0 18px 60px #0004;text-align:center';
+ const title=document.createElement('h2');title.id='rtExistingTitle';title.textContent='✨ 检测到已有账号';title.style.cssText='font-size:21px;margin:0 0 12px';
+ const detail=document.createElement('p');detail.textContent='该手机号或邮箱已经注册，已自动登录原账号，无需重复注册。';detail.style.cssText='font-size:15px;line-height:1.7;margin:0 0 22px;color:#666';
+ const ok=document.createElement('button');ok.textContent='确定';ok.style.cssText='width:100%;border:0;border-radius:13px;background:#7662ef;color:#fff;font-size:16px;font-weight:600;padding:13px';
+ ok.onclick=()=>cover.remove();box.append(title,detail,ok);cover.appendChild(box);document.body.appendChild(cover);ok.focus();
+}
 function rtEsc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function rtRender(page,note){rtPage=page;let r=rtElem('rtAuthRoot');if(!r)return;
  const head=(title,sub)=>`<div class="rt-head"><div class="rt-mark">✦</div><h1>${title}</h1><p>${sub}</p></div>`;
