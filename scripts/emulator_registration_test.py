@@ -89,10 +89,7 @@ try:
       }
     })()"""
     response = eval_js(ws, test_js, 7)
-    if response.get('result', {}).get('exceptionDetails'):
-        raise AssertionError('Registration validation JS failed: ' +
-                             json.dumps(response['result']['exceptionDetails'], ensure_ascii=False))
-    validation = response.get('result', {}).get('result', {}).get('value')
+    Path('emulator-results/registration-validation-raw.json').write_text(\n        json.dumps(response, ensure_ascii=False, indent=2))\n    if response.get('result', {}).get('exceptionDetails'):\n        raise AssertionError('Registration validation JS failed: ' +\n                             json.dumps(response['result']['exceptionDetails'], ensure_ascii=False))\n    validation = response.get('result', {}).get('result', {}).get('value')
     Path('emulator-results/registration-validation.json').write_text(
         json.dumps(validation, ensure_ascii=False, indent=2))
     if not validation or not validation.get('passed'):
