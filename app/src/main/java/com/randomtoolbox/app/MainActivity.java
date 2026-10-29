@@ -202,7 +202,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if(!document.getElementById('rtShakeRow')){
                   var vibe=document.getElementById('vibeToggle');
                   var row=document.createElement('div');row.className='setting';row.id='rtShakeRow';
-                  var label=document.createElement('span');label.textContent='📳 摇一摇触发';
+                  var label=document.createElement('span');label.textContent='📱 摇一摇触发';
                   var box=document.createElement('input');box.type='checkbox';box.id='rtShakeToggle';
                   var state=JSON.parse(localStorage.getItem('rt_settings')||'{}');
                   box.checked=state.shake!==false;
