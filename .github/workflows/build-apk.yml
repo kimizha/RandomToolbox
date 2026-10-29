@@ -147,6 +147,19 @@ jobs:
             adb pull /sdcard/rt-startup.png emulator-results/startup.png
             adb logcat -d -v time > emulator-results/logcat.txt
             adb shell dumpsys activity activities > emulator-results/activity.txt
+            # Registration navigation smoke test: no credentials or OTP are used.
+            # Pixel 4 emulator: tap the rightmost Settings tab, then account entry.
+            adb shell input tap 945 2090
+            sleep 3
+            adb shell screencap -p /sdcard/rt-settings.png
+            adb pull /sdcard/rt-settings.png emulator-results/settings.png
+            adb shell input tap 540 400
+            sleep 3
+            adb shell screencap -p /sdcard/rt-account.png
+            adb pull /sdcard/rt-account.png emulator-results/account.png
+            adb shell uiautomator dump /sdcard/rt-ui.xml || true
+            adb pull /sdcard/rt-ui.xml emulator-results/ui.xml || true
+            adb logcat -d -v time > emulator-results/logcat-after-account.txt
             adb shell pidof com.randomtoolbox.app > emulator-results/pid.txt
             test -s emulator-results/pid.txt
       - name: Upload emulator screenshot and logs
