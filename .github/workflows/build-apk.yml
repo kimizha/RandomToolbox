@@ -8,30 +8,24 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04
-
     permissions:
       contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
       - name: Configure Android SDK
         shell: bash
         run: |
@@ -40,45 +34,73 @@ jobs:
           SDKMANAGER=$(find "$SDK_DIR/cmdline-tools" -name sdkmanager -type f | head -n 1)
           test -n "$SDKMANAGER" || exit 1
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
-
       - name: Accept Android SDK licenses
         run: yes | "$SDKMANAGER" --licenses || true
-
       - name: Install Android SDK packages
         run: |
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
-
       - name: Install CloudBase SDK build tools
         run: |
           npm install --no-save --no-package-lock \
             @cloudbase/js-sdk@3 \
             esbuild@0.25
-
       - name: Bundle CloudBase SDK locally
         run: |
-          mkdir -p scripts
-          mkdir -p app/src/main/assets
-
-          cat > scripts/cloudbase-entry.js <<'EOF'
+          mkdir -p scripts app/src/main/assets
+          cat > scripts/cloudbase-entry.js <<'JS'
           import cloudbase from '@cloudbase/js-sdk';
           window.RTCloudbaseSDK = cloudbase;
-          EOF
-
+          JS
           npx esbuild scripts/cloudbase-entry.js \
-            --bundle \
-            --format=iife \
-            --platform=browser \
-            --target=es2020 \
+            --bundle --format=iife --platform=browser --target=es2020 \
             --outfile=app/src/main/assets/cloudbase-sdk.js
-
       - name: Add account system to bundled HTML
         env:
           CLOUDBASE_PUBLISHABLE_KEY: ${{ secrets.CLOUDBASE_PUBLISHABLE_KEY }}
         run: python3 scripts/inject_auth.py
-
+      - name: Generate CloudBase diagnostic page
+        env:
+          CLOUDBASE_PUBLISHABLE_KEY: ${{ secrets.CLOUDBASE_PUBLISHABLE_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os, json
+          from pathlib import Path
+          key=os.environ.get('CLOUDBASE_PUBLISHABLE_KEY','').strip()
+          if not key.startswith('eyJ'):
+              raise SystemExit('Missing or unexpected client Publishable Key')
+          html='''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CloudBase 认证诊断</title><style>body{font-family:system-ui;background:#f6f7fb;padding:24px}main{max-width:650px;margin:auto;background:white;padding:24px;border-radius:18px}button{padding:12px;border:0;border-radius:10px;background:#8059e4;color:white}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eee;padding:14px;border-radius:10px}</style></head><body><main><h2>CloudBase 认证诊断</h2><p>不发送验证码，不需要账号密码。请不要分享含密钥的源文件。</p><button id="go">检测认证服务</button><pre id="out">等待检测</pre></main><script type="module">
+          const KEY=__KEY__;
+          const out=document.getElementById('out');
+          const log=s=>out.textContent+='\\n'+s;
+          document.getElementById('go').onclick=async()=>{
+            out.textContent='开始检测';
+            try{
+              const mod=await import('https://esm.sh/@cloudbase/js-sdk@3?bundle');
+              const sdk=mod.default||mod;
+              log('SDK: 已加载');
+              const app=sdk.init({env:'randomtoolbox-d5gg1p6rg1d2287eb',region:'ap-shanghai',accessKey:KEY});
+              log('初始化: 已完成');
+              const auth=typeof app.auth==='function'?app.auth():app.auth;
+              log('认证对象: '+(auth?'已创建':'缺失'));
+              if(!auth)throw Error('认证对象不存在');
+              const result=await Promise.race([auth.getSession(),new Promise((_,reject)=>setTimeout(()=>reject(Error('超过15秒')),15000))]);
+              if(result?.error)throw result.error;
+              log('getSession: 成功返回（没有登录会话也可能正常）');
+            }catch(e){log('错误类型: '+(e?.name||'unknown'));log('错误代码: '+(e?.code||'none'));log('错误信息: '+(e?.message||String(e)));}
+          };
+          </script></body></html>'''
+          Path('cloudbase-auth-diagnostic.html').write_text(html.replace('__KEY__',json.dumps(key)),encoding='utf-8')
+          print('Diagnostic page generated (client key omitted from logs)')
+          PY
+      - name: Upload CloudBase diagnostic page
+        uses: actions/upload-artifact@v4
+        with:
+          name: CloudBase-auth-diagnostic
+          path: cloudbase-auth-diagnostic.html
+          if-no-files-found: error
+          retention-days: 1
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
