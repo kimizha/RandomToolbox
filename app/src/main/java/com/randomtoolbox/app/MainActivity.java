@@ -200,8 +200,10 @@ public class MainActivity extends Activity implements SensorEventListener {
                 var settingsView=document.getElementById('settings');
                 if(!settingsView)return;
                 if(!document.getElementById('rtShakeRow')){
-                  var panel=settingsView.querySelector('.panel');
+                  var panel=document.createElement('div');panel.className='panel';panel.id='rtShakePanel';panel.style.marginBottom='14px';
+                  settingsView.appendChild(panel);
                   if(panel){
+                    var title=document.createElement('h2');title.textContent='🎛️ 操作设置';title.style.fontSize='17px';panel.appendChild(title);
                     var row=document.createElement('div');row.className='setting';row.id='rtShakeRow';
                     var label=document.createElement('span');label.textContent='📳 摇一摇触发';
                     var box=document.createElement('input');box.type='checkbox';box.id='rtShakeToggle';
