@@ -117,8 +117,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                     updateStatus("已恢复内置网页版本 " + BUNDLED_WEB_VERSION);
                     return;
                 }
-                loadSavedWebUpdate();
-                checkForUpdates(false);
+                // Auth development build: keep the bundled page authoritative.
+                // Legacy HTML updates can overwrite the bundled authentication UI.
+                updateStatus("账号测试版 · 已暂停旧网页自动更新");
             }
         });
         webView.loadUrl(HOME_URL);
@@ -242,6 +243,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         js("var e=document.getElementById('rtUpdateStatus');if(e)e.textContent=" + JSONObject.quote(message) + ";");
     }
     private void checkForUpdates(boolean manual) {
+        if (manual) updateStatus("账号测试版已暂停网页更新，避免旧页面覆盖注册功能");
+        return;
+    }
+    private void legacyCheckForUpdates(boolean manual) {
         if (checking) { if (manual) updateStatus("正在检查更新，请稍候…"); return; }
         checking = true;
         if (manual) updateStatus("正在检查更新…");
