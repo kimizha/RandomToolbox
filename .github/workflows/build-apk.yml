@@ -1,66 +1,44 @@
 name: Build Android APK
-
 on:
   workflow_dispatch:
   push:
     branches: [main]
-
 jobs:
   build:
     runs-on: ubuntu-24.04
-
     permissions:
       contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
       - name: Configure Android SDK
         shell: bash
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-
           SDK_DIR="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-
-          if [ -z "$SDK_DIR" ]; then
-            echo "Android SDK directory not found"
-            exit 1
-          fi
-
+          test -n "$SDK_DIR" || exit 1
           SDKMANAGER=$(find "$SDK_DIR/cmdline-tools" -name sdkmanager -type f | head -n 1)
-
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager not found"
-            exit 1
-          fi
-
+          test -n "$SDKMANAGER" || exit 1
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
-
       - name: Accept Android SDK licenses
         run: yes | "$SDKMANAGER" --licenses || true
-
       - name: Install Android SDK packages
         run: |
-          "$SDKMANAGER" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
-
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Add account system to bundled HTML
+        env:
+          CLOUDBASE_PUBLISHABLE_KEY: ${{ secrets.CLOUDBASE_PUBLISHABLE_KEY }}
+        run: python3 scripts/inject_auth.py
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
