@@ -3,65 +3,186 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>随机工具箱 · CloudBase 认证诊断</title>
+<title>随机工具箱 · CloudBase 邮箱注册诊断</title>
+
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f6f7fb;
-  padding: 20px;
-  color: #242039;
+* {
+  box-sizing: border-box;
 }
+
+body {
+  margin: 0;
+  padding: 20px;
+  background: #f6f7fb;
+  color: #242039;
+  font-family: -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Arial, sans-serif;
+}
+
 main {
-  max-width: 600px;
+  max-width: 520px;
   margin: 30px auto;
   background: white;
   padding: 25px;
-  border-radius: 20px;
+  border-radius: 22px;
+  box-shadow: 0 8px 35px rgba(0,0,0,.05);
 }
+
+h2 {
+  margin-top: 0;
+}
+
+.subtitle {
+  color: #777;
+  font-size: 14px;
+  margin-bottom: 25px;
+}
+
+label {
+  display: block;
+  margin-top: 18px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  font-size: 15px;
+  outline: none;
+}
+
+input:focus {
+  border-color: #8059e4;
+}
+
 button {
   display: block;
   width: 100%;
   padding: 15px;
-  margin: 12px 0;
+  margin-top: 15px;
   background: #8059e4;
   color: white;
-  border: 0;
+  border: none;
   border-radius: 12px;
   font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
 }
+
+button.secondary {
+  background: #f0ebff;
+  color: #7045cf;
+}
+
+button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
 pre {
-  background: #f1f1f5;
+  background: #f4f4f8;
   padding: 15px;
   border-radius: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  line-height: 1.7;
+  line-height: 1.8;
+  font-size: 12px;
+  min-height: 100px;
 }
+
+.tip {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.8;
+  margin-top: 20px;
+}
+
+.success {
+  color: #16864b;
+}
+
 </style>
 </head>
+
 <body>
+
 <main>
-  <h2>🔍 CloudBase 认证诊断</h2>
-  <p>随机工具箱 · 验证码网络排查</p>
 
-  <button onclick="testSDK()">① 检测 SDK</button>
-  <button onclick="testAuth()">② 检测认证服务</button>
+<h2>🔍 CloudBase 注册诊断</h2>
 
-  <h3>检测结果</h3>
-  <pre id="result">等待检测...</pre>
+<p class="subtitle">
+随机工具箱 · HTTPS 验证码网络测试
+</p>
 
-  <p style="font-size:12px;color:#888">
-    本页面不会发送验证码，也不会要求输入账号密码。
-  </p>
+<label>客户端 Publishable Key</label>
+
+<input
+  id="publishableKey"
+  type="password"
+  placeholder="输入 CloudBase Publishable Key"
+  autocomplete="off"
+>
+
+<label>测试邮箱</label>
+
+<input
+  id="email"
+  type="email"
+  placeholder="输入自己的邮箱"
+  autocomplete="off"
+>
+
+<label>测试密码</label>
+
+<input
+  id="password"
+  type="password"
+  placeholder="至少 8 位，建议使用全新测试密码"
+  autocomplete="new-password"
+>
+
+<button
+  class="secondary"
+  onclick="testConnection()"
+>
+① 检测 CloudBase SDK
+</button>
+
+<button
+  onclick="testSignup()"
+>
+② 测试发送邮箱验证码
+</button>
+
+<h3>检测结果</h3>
+
+<pre id="result">等待检测...</pre>
+
+<p class="tip">
+⚠️ 本页面仅用于临时诊断。<br>
+Publishable Key、邮箱和密码不会被写入 GitHub 代码。<br>
+点击第二个按钮会发起真实注册请求，可能发送验证码或创建账号。<br>
+请使用专门的测试密码，不要使用常用账号密码。<br>
+不要将密码、验证码或完整网络请求内容发送给他人。
+</p>
+
 </main>
 
 <script>
-const ENV_ID = "randomtoolbox-d5gg1p6rg1d2287eb";
+
+const ENV_ID =
+  "randomtoolbox-d5gg1p6rg1d2287eb";
+
 const REGION = "ap-shanghai";
 
 let sdk = null;
-let auth = null;
+
+let busy = false;
 
 function log(message) {
   const box = document.getElementById("result");
@@ -74,18 +195,40 @@ function reset() {
 }
 
 function showError(error) {
-  log("❌ 检测失败");
-  log("错误名称：" + (error?.name || "未知"));
-  log("错误内容：" + (error?.message || String(error)));
 
-  if (error?.code) {
-    log("错误代码：" + error.code);
+  log("❌ 请求失败");
+
+  log(
+    "错误类型: " +
+    (error?.name || "未知")
+  );
+
+  log(
+    "错误代码: " +
+    (error?.code || "无")
+  );
+
+  log(
+    "错误信息: " +
+    (error?.message || String(error))
+  );
+
+  if (error?.status) {
+    log("HTTP 状态: " + error.status);
   }
 
-  console.error("CloudBase diagnostic error:", error);
+  if (error?.statusCode) {
+    log("状态代码: " + error.statusCode);
+  }
+
+  log(
+    "如显示 Failed to fetch，请检查 F12 中的 Network 和 Console。"
+  );
+
 }
 
 async function loadSDK() {
+
   if (sdk) return sdk;
 
   log("正在加载 CloudBase SDK...");
@@ -97,85 +240,204 @@ async function loadSDK() {
   sdk = mod.default || mod;
 
   if (typeof sdk.init !== "function") {
-    throw new Error("SDK init 函数不存在");
+    throw new Error("SDK init 方法不存在");
   }
 
-  log("✅ SDK 加载成功");
+  log("SDK: 已加载");
+
   return sdk;
 }
 
-async function testSDK() {
-  reset();
+function getKey() {
 
-  try {
-    await loadSDK();
-    log("SDK 检测通过");
-  } catch (error) {
-    showError(error);
+  const key =
+    document.getElementById("publishableKey")
+      .value.trim();
+
+  if (!key) {
+    throw new Error(
+      "请先填写客户端 Publishable Key"
+    );
   }
+
+  return key;
 }
 
-async function testAuth() {
-  reset();
+async function createAuth() {
 
-  try {
-    const cloudbase = await loadSDK();
+  const cloudbase = await loadSDK();
 
-    log("正在初始化 CloudBase...");
-    log("环境：" + ENV_ID);
-    log("区域：" + REGION);
+  const app = cloudbase.init({
 
-    const app = cloudbase.init({
-      env: ENV_ID,
-      region: REGION
-    });
+    env: ENV_ID,
 
-    log("✅ CloudBase 初始化成功");
+    region: REGION,
 
-    auth = typeof app.auth === "function"
+    accessKey: getKey()
+
+  });
+
+  log("初始化: 已完成");
+
+  const auth =
+    typeof app.auth === "function"
       ? app.auth()
       : app.auth;
 
-    if (!auth) {
-      throw new Error("无法获取认证对象");
+  if (!auth) {
+    throw new Error("认证对象创建失败");
+  }
+
+  log("认证对象: 已创建");
+
+  log(
+    "signUp 方法: " +
+    typeof auth.signUp
+  );
+
+  return auth;
+}
+
+async function testConnection() {
+
+  if (busy) return;
+
+  busy = true;
+  reset();
+
+  try {
+
+    const auth = await createAuth();
+
+    if (
+      typeof auth.signUp !== "function"
+    ) {
+      throw new Error(
+        "signUp 注册方法不存在"
+      );
     }
 
-    log("✅ 认证对象创建成功");
+    log("SDK 和注册方法检查通过");
+    log("注意：尚未发送网络注册请求");
 
-    if (typeof auth.getSession !== "function") {
-      throw new Error("getSession 方法不存在");
+  } catch (error) {
+
+    showError(error);
+
+  } finally {
+
+    busy = false;
+
+  }
+
+}
+
+async function testSignup() {
+
+  if (busy) return;
+
+  busy = true;
+  reset();
+
+  try {
+
+    const email =
+      document.getElementById("email")
+        .value.trim();
+
+    const password =
+      document.getElementById("password")
+        .value;
+
+    if (!email || !email.includes("@")) {
+      throw new Error(
+        "请输入正确的测试邮箱"
+      );
     }
 
-    log("正在请求认证会话...");
+    if (password.length < 8) {
+      throw new Error(
+        "测试密码至少需要 8 位"
+      );
+    }
+
+    const auth = await createAuth();
+
+    if (
+      typeof auth.signUp !== "function"
+    ) {
+      throw new Error(
+        "signUp 方法不存在"
+      );
+    }
+
+    log("正在调用 signUp...");
+    log("正在发送邮箱注册请求...");
+
+    const params = {
+
+      email: email,
+
+      password: password
+
+    };
 
     const response = await Promise.race([
-      auth.getSession(),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("认证请求超过15秒")),
-          15000
-        )
-      )
+
+      auth.signUp(params),
+
+      new Promise((_, reject) => {
+
+        setTimeout(() => {
+
+          reject(
+            new Error(
+              "请求超过 20 秒，网络可能不可达"
+            )
+          );
+
+        }, 20000);
+
+      })
+
     ]);
 
     if (response?.error) {
       throw response.error;
     }
 
-    log("✅ 认证接口请求完成");
+    log("✅ signUp 请求成功返回");
 
-    if (response?.data?.session) {
-      log("当前存在登录会话");
+    if (
+      response?.data?.verifyOtp
+    ) {
+
+      log("验证码验证流程已返回");
+      log("请检查测试邮箱");
+
     } else {
-      log("当前没有登录会话（正常）");
+
+      log(
+        "请求已返回，但没有检测到 verifyOtp"
+      );
+
     }
 
-    log("🎉 认证服务初步检测通过");
+    log("测试结束");
 
   } catch (error) {
+
     showError(error);
+
+  } finally {
+
+    busy = false;
+
   }
+
 }
+
 </script>
+
 </body>
 </html>
