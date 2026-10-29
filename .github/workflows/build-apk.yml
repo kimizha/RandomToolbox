@@ -1,4 +1,5 @@
 name: Build Android APK
+# Manual rebuild requested 2026-10-30: verify JavaScript syntax fix and emulator startup.
 
 on:
   workflow_dispatch:
