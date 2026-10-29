@@ -203,10 +203,16 @@ jobs:
             sleep 3
             adb shell screencap -p /sdcard/rt-settings.png
             adb pull /sdcard/rt-settings.png emulator-results/settings.png
-            adb shell input tap 540 400
+            # Account entry sits near the top of Settings, but WebView layout can vary.
+            # Use a series of screenshots for manual verification of each navigation step.
+            adb shell input tap 540 620
             sleep 3
             adb shell screencap -p /sdcard/rt-account.png
             adb pull /sdcard/rt-account.png emulator-results/account.png
+            adb shell input tap 725 1050
+            sleep 2
+            adb shell screencap -p /sdcard/rt-register-choice.png
+            adb pull /sdcard/rt-register-choice.png emulator-results/register-choice.png
             adb shell uiautomator dump /sdcard/rt-ui.xml || true
             adb pull /sdcard/rt-ui.xml emulator-results/ui.xml || true
             adb logcat -d -v time > emulator-results/logcat-after-account.txt
