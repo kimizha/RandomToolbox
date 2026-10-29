@@ -12,12 +12,16 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.MediaMetadataRetriever;
+import android.os.Build;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.util.Base64;
+import android.view.View;
 import org.json.JSONObject;
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -46,6 +50,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private SharedPreferences prefs;
     private SensorManager sensorManager;
     private Sensor accelerometer;
+    private Vibrator vibrator;
     private float gravityX, gravityY, gravityZ;
     private boolean sensorReady = false;
     private long lastShake = 0;
@@ -57,12 +62,18 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(0xfff6f7fb);
-        getWindow().setNavigationBarColor(0xfff6f7fb);
         prefs = getSharedPreferences("rt_native_update", MODE_PRIVATE);
+        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         accelerometer = sensorManager == null ? null : sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        applySystemTheme(false);
         webView = new WebView(this);
+        webView.setBackgroundColor(0xfff6f7fb);
+        webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        webView.setVerticalScrollBarEnabled(false);
+        webView.setHorizontalScrollBarEnabled(false);
+        webView.setHapticFeedbackEnabled(true);
+        webView.setOnLongClickListener(v -> true);
         setContentView(webView);
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
@@ -91,6 +102,23 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         });
         webView.loadUrl(HOME_URL);
+    }
+    private void applySystemTheme(boolean dark) {
+        int color = dark ? 0xff10131d : 0xfff6f7fb;
+        getWindow().setStatusBarColor(color);
+        getWindow().setNavigationBarColor(color);
+        int flags = getWindow().getDecorView().getSystemUiVisibility();
+        flags = dark ? (flags & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR)
+                     : (flags | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        getWindow().getDecorView().setSystemUiVisibility(flags);
+        if (webView != null) webView.setBackgroundColor(color);
+    }
+    private void nativeVibrate(long[] pattern) {
+        if (vibrator == null || !vibrator.hasVibrator()) return;
+        try {
+            if (Build.VERSION.SDK_INT >= 26) vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1));
+            else vibrator.vibrate(pattern, -1);
+        } catch (Exception ignored) {}
     }
     private void js(String script) {
         main.post(() -> { if (webView != null) webView.evaluateJavascript(script, null); });
@@ -147,6 +175,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if(name && typeof window[name]==='function')window[name]();
                   }catch(e){console.warn(e);}
                 };
+                try{var s=JSON.parse(localStorage.getItem('rt_settings')||'{}');RandomToolboxNative.setDarkMode(!!s.dark)}catch(e){}
                 var settingsView=document.getElementById('settings');
                 if(!settingsView)return;
                 if(!document.getElementById('rtShakeRow')){
@@ -176,7 +205,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                   var rollback=document.createElement('button');rollback.className='secondary';
                   rollback.style.width='100%';rollback.textContent='恢复内置版本';
                   rollback.onclick=function(){
-                    if(confirm('恢复内置版本？当前已下载的网页更新将被移除。'))RandomToolboxNative.rollback();
+                    if(typeof rtDialog==='function')rtDialog('恢复内置版本？','当前已下载的网页更新将被移除。',function(){RandomToolboxNative.rollback()});
+                    else if(confirm('恢复内置版本？'))RandomToolboxNative.rollback();
                   };
                   p.appendChild(title);p.appendChild(status);p.appendChild(check);p.appendChild(rollback);
                   settingsView.appendChild(p);
@@ -277,6 +307,22 @@ public class MainActivity extends Activity implements SensorEventListener {
         return b.toString();
     }
     public class NativeBridge {
+        @JavascriptInterface public void vibrate(int milliseconds) {
+            int ms = Math.max(1, Math.min(500, milliseconds));
+            nativeVibrate(new long[]{0, ms});
+        }
+        @JavascriptInterface public void vibratePattern(String patternJson) {
+            try {
+                org.json.JSONArray arr = new org.json.JSONArray(patternJson);
+                int count = Math.min(arr.length(), 12);
+                if (count == 0) return;
+                long[] pattern = new long[count + 1];
+                pattern[0] = 0;
+                for (int i = 0; i < count; i++) pattern[i + 1] = Math.max(0, Math.min(500, arr.getLong(i)));
+                nativeVibrate(pattern);
+            } catch (Exception ignored) {}
+        }
+        @JavascriptInterface public void setDarkMode(boolean dark) { main.post(() -> applySystemTheme(dark)); }
         @JavascriptInterface public String getMusicCover(String relativePath) {
             if (relativePath == null || !relativePath.startsWith("music/")
                 || !relativePath.toLowerCase(Locale.ROOT).endsWith(".mp3")
@@ -347,10 +393,13 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
     @Override public void onBackPressed() {
         if (webView == null) { super.onBackPressed(); return; }
-        js("if(typeof go==='function' && !document.getElementById('home').classList.contains('active'))go('home');else if(typeof toast==='function')toast('再次按返回键可退出应用');");
-        long now = SystemClock.elapsedRealtime();
-        if (now - lastBack < 1800) super.onBackPressed();
-        lastBack = now;
+        webView.evaluateJavascript("(function(){if(document.getElementById('rtModalShade')){document.getElementById('rtModalShade').remove();return 'handled'}var a=document.querySelector('.view.active');if(a&&a.id!=='home'){if(a.id==='game')go('games');else if(a.id==='tool'||a.id==='manage')go('home');else if(a.id==='ideas')go('catalog');else go('home');return 'handled'}return 'home'})()", result -> {
+            if ("\"handled\"".equals(result)) { lastBack = 0; return; }
+            long now = SystemClock.elapsedRealtime();
+            if (now - lastBack < 1800) MainActivity.super.onBackPressed();
+            else notifyUser("再次按返回键可退出应用");
+            lastBack = now;
+        });
     }
     @Override protected void onDestroy() {
         worker.shutdownNow();
