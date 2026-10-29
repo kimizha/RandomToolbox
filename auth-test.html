@@ -3,27 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>随机工具箱 · 网络诊断</title>
+<title>随机工具箱 · CloudBase 认证诊断</title>
 <style>
 body {
   font-family: Arial, sans-serif;
   background: #f6f7fb;
-  padding: 24px;
+  padding: 20px;
   color: #242039;
 }
 main {
   max-width: 600px;
-  margin: 40px auto;
+  margin: 30px auto;
   background: white;
   padding: 25px;
   border-radius: 20px;
 }
 button {
-  padding: 14px 20px;
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin: 12px 0;
   background: #8059e4;
   color: white;
   border: 0;
   border-radius: 12px;
+  font-size: 15px;
   cursor: pointer;
 }
 pre {
@@ -32,68 +36,144 @@ pre {
   border-radius: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  line-height: 1.7;
 }
 </style>
 </head>
 <body>
 <main>
-  <h2>🔍 随机工具箱网络诊断</h2>
-  <p>测试 CloudBase SDK 加载及网络连接。</p>
+  <h2>🔍 CloudBase 认证诊断</h2>
+  <p>随机工具箱 · 验证码网络排查</p>
 
-  <button onclick="runTest()">开始检测</button>
+  <button onclick="testSDK()">① 检测 SDK</button>
+  <button onclick="testAuth()">② 检测认证服务</button>
 
   <h3>检测结果</h3>
   <pre id="result">等待检测...</pre>
+
+  <p style="font-size:12px;color:#888">
+    本页面不会发送验证码，也不会要求输入账号密码。
+  </p>
 </main>
 
 <script>
 const ENV_ID = "randomtoolbox-d5gg1p6rg1d2287eb";
+const REGION = "ap-shanghai";
+
+let sdk = null;
+let auth = null;
 
 function log(message) {
-  document.getElementById("result").textContent +=
-    "\n" + message;
+  const box = document.getElementById("result");
+  box.textContent += "\n" + message;
 }
 
-async function runTest() {
+function reset() {
   document.getElementById("result").textContent =
     "开始检测...\n";
+}
 
-  log("当前网页：" + location.origin);
-  log("CloudBase 环境：" + ENV_ID);
+function showError(error) {
+  log("❌ 检测失败");
+  log("错误名称：" + (error?.name || "未知"));
+  log("错误内容：" + (error?.message || String(error)));
+
+  if (error?.code) {
+    log("错误代码：" + error.code);
+  }
+
+  console.error("CloudBase diagnostic error:", error);
+}
+
+async function loadSDK() {
+  if (sdk) return sdk;
+
+  log("正在加载 CloudBase SDK...");
+
+  const mod = await import(
+    "https://esm.sh/@cloudbase/js-sdk@3?bundle"
+  );
+
+  sdk = mod.default || mod;
+
+  if (typeof sdk.init !== "function") {
+    throw new Error("SDK init 函数不存在");
+  }
+
+  log("✅ SDK 加载成功");
+  return sdk;
+}
+
+async function testSDK() {
+  reset();
 
   try {
-    log("1. 正在检查 SDK 地址...");
+    await loadSDK();
+    log("SDK 检测通过");
+  } catch (error) {
+    showError(error);
+  }
+}
 
-    const response = await fetch(
-      "https://esm.sh/@cloudbase/js-sdk@3?bundle",
-      { method: "GET" }
-    );
+async function testAuth() {
+  reset();
 
-    log("SDK HTTP 状态：" + response.status);
+  try {
+    const cloudbase = await loadSDK();
 
-    if (!response.ok) {
-      throw new Error("SDK 地址访问失败");
+    log("正在初始化 CloudBase...");
+    log("环境：" + ENV_ID);
+    log("区域：" + REGION);
+
+    const app = cloudbase.init({
+      env: ENV_ID,
+      region: REGION
+    });
+
+    log("✅ CloudBase 初始化成功");
+
+    auth = typeof app.auth === "function"
+      ? app.auth()
+      : app.auth;
+
+    if (!auth) {
+      throw new Error("无法获取认证对象");
     }
 
-    log("2. SDK 地址访问成功");
+    log("✅ 认证对象创建成功");
 
-    log("3. 正在加载 CloudBase SDK...");
+    if (typeof auth.getSession !== "function") {
+      throw new Error("getSession 方法不存在");
+    }
 
-    const mod = await import(
-      "https://esm.sh/@cloudbase/js-sdk@3?bundle"
-    );
+    log("正在请求认证会话...");
 
-    const sdk = mod.default || mod;
+    const response = await Promise.race([
+      auth.getSession(),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("认证请求超过15秒")),
+          15000
+        )
+      )
+    ]);
 
-    log("SDK 加载成功");
-    log("SDK init 类型：" + typeof sdk.init);
+    if (response?.error) {
+      throw response.error;
+    }
 
-    log("初步检测完成。");
+    log("✅ 认证接口请求完成");
+
+    if (response?.data?.session) {
+      log("当前存在登录会话");
+    } else {
+      log("当前没有登录会话（正常）");
+    }
+
+    log("🎉 认证服务初步检测通过");
 
   } catch (error) {
-    log("❌ 检测失败");
-    log("错误名称：" + error.name);
-    log("错误内容：" + error.message);
+    showError(error);
   }
 }
 </script>
