@@ -112,6 +112,19 @@ jobs:
         env:
           CLOUDBASE_PUBLISHABLE_KEY: ${{ secrets.CLOUDBASE_PUBLISHABLE_KEY }}
         run: python3 scripts/inject_auth.py
+      - name: Verify bundled HTML JavaScript syntax
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          const vm = require('vm');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)];
+          if (!scripts.length) throw Error('No inline JavaScript found');
+          for (let i = 0; i < scripts.length; i++) {
+            new vm.Script(scripts[i][1], {filename: 'inline-script-' + (i + 1) + '.js'});
+          }
+          console.log('Validated ' + scripts.length + ' inline scripts');
+          JS
       - name: Generate CloudBase diagnostic page
         env:
           CLOUDBASE_PUBLISHABLE_KEY: ${{ secrets.CLOUDBASE_PUBLISHABLE_KEY }}
