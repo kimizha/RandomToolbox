@@ -192,7 +192,9 @@ jobs:
           mkdir -p release-output
           cp "$APK" "release-output/RandomToolbox-v${VERSION_NAME}-debug.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists. Keeping its original APK; bump versionCode to publish a new version."
+            gh release upload "$TAG" "release-output/RandomToolbox-v${VERSION_NAME}-debug.apk" --clobber
+            gh release edit "$TAG" --target "$GITHUB_SHA"
+            echo "Updated existing release $TAG with APK built from $GITHUB_SHA"
           else
             gh release create "$TAG" "release-output/RandomToolbox-v${VERSION_NAME}-debug.apk" \
               --target "$GITHUB_SHA" \
