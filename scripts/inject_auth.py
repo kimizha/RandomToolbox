@@ -74,7 +74,7 @@ rtStatus();setTimeout(rtStartAuth,250);
 '''.replace('__RT_KEY__', json.dumps(key))
 replace('</head>', css + '</head>')
 replace('<script>', '<script src="cloudbase-sdk.js"></script><script>')
-replace('</script></body></html>', js + '\n</script></body></html>')
+replace('</script></body></html>', '</script><script>' + js + '\n</script></body></html>')
 p.write_text(s, encoding='utf-8')
 print('Injected RT_AUTH_NATIVE_V3 account UI')
 
