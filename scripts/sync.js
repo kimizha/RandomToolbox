@@ -1,42 +1,70 @@
-/* Account-scoped explicit cloud backup; never includes authentication tokens. */
+/* Automatic per-account synchronization. Only the explicit data allowlist leaves the device. */
 const RT_SYNC_KEYS=['rt_settings','rt_wheelItems','rt_drawItems','rt_favorites'];
-function rtSyncUid(){return String(rtUser?.uid||rtUser?.id||rtUser?._id||'')}
-function rtSyncPanel(){
- if(!window.rtLoggedIn)return rtShowLogin();
- let root=rtElem('rtSyncRoot');if(root)root.remove();
- root=document.createElement('div');root.id='rtSyncRoot';root.className='rt-auth';
- root.innerHTML='<div class="rt-wrap"><button class="rt-back" onclick="document.getElementById(\'rtSyncRoot\').remove()">‹</button><div class="rt-head"><h1>账号同步</h1><p>备份昵称、头像、设置、自定义转盘和抽签名单、收藏。登录凭证不会上传。</p></div><p>上传会替换此账号的云端备份；恢复会替换本机对应数据。请在换设备前上传。</p><button class="rt-btn rt-primary" onclick="rtSyncRun(false)">备份到云端</button><button class="rt-btn" onclick="rtSyncRun(true)">从云端恢复</button><p id="rtSyncMsg" role="status"></p></div>';
- document.body.appendChild(root);
+let rtSyncOwner='',rtSyncReady=false,rtSyncBusy=false,rtSyncGeneration=0,rtSyncBaseline={},rtSyncState='登录后自动同步';
+function rtSyncUid(){return window.rtLoggedIn?String(rtUser?.uid||rtUser?.id||rtUser?._id||''):''}
+function rtSyncSnapshot(){return Object.fromEntries([...RT_SYNC_KEYS,'rt_profile_'+rtSyncOwner].map(k=>[k,localStorage.getItem(k)]))}
+function rtSyncMessage(text){rtSyncState=text;const e=rtElem('rtSyncStatus');if(e)e.textContent=text}
+function rtSyncCacheKey(uid){return 'rt_sync_cache_'+uid}
+function rtSyncLoad(uid){try{return JSON.parse(localStorage.getItem(rtSyncCacheKey(uid))||'null')}catch(e){return null}}
+function rtSyncSaveCache(){if(rtSyncOwner)localStorage.setItem(rtSyncCacheKey(rtSyncOwner),JSON.stringify({values:rtSyncSnapshot(),baseline:rtSyncBaseline}))}
+function rtSyncApply(values){
+ for(const k of [...RT_SYNC_KEYS,'rt_profile_'+rtSyncOwner]){
+  const v=values[k]??null;if(v!==null){if(typeof v!=='string')throw Error('同步数据格式异常');JSON.parse(v)}
+ }
+ for(const k of [...RT_SYNC_KEYS,'rt_profile_'+rtSyncOwner]){const v=values[k]??null;if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}
+ settings=Object.assign({dark:false,vibe:true,sound:true,volume:65,speed:'normal'},get('settings',{}));
+ wheelItems=get('wheelItems',['吃火锅','看电影','去散步','打游戏','喝奶茶','在家休息']);drawItems=get('drawItems',['选项一','选项二','选项三']);
+ favorites=get('favorites',[]).filter(x=>toolIds.includes(x));remaining=[];rtAccountRefresh();
+ // Re-render the visible page through the app's existing navigation.
+ const page=document.querySelector('.view.active')?.id;if(page&&typeof go==='function')go(page);
+ if(window.RandomToolboxNative)RandomToolboxNative.setDarkMode(!!settings.dark);
 }
-let rtSyncBusy=false;
-async function rtSyncRun(restore){
- if(rtSyncBusy)return;
- const uid=rtSyncUid(),owner=rtProfileKey(),msg=rtElem('rtSyncMsg');
- if(!uid||!window.rtLoggedIn)return;
- if(!confirm(restore?'用云端备份替换本机资料和设置？':'用本机数据替换此账号的云端备份？'))return;
- rtSyncBusy=true;msg.textContent=restore?'正在读取备份…':'正在上传备份…';
+function rtSyncAccountChanged(){
+ const uid=rtSyncUid();if(uid===rtSyncOwner)return;
+ if(rtSyncOwner){try{rtSyncSaveCache()}catch(e){console.error(e)}}
+ ++rtSyncGeneration;rtSyncReady=false;
+ const previous=rtSyncOwner;rtSyncOwner=uid;
+ if(!uid){rtSyncMessage('登录后自动同步');return}
+ rtProfileClose();
+ const cache=rtSyncLoad(uid);
+ // Legacy unscoped settings may belong to another account: never upload them automatically.
+ const values=cache?.values||Object.fromEntries(RT_SYNC_KEYS.map(k=>[k,null]));
+ values['rt_profile_'+uid]=cache?.values?.['rt_profile_'+uid]??localStorage.getItem('rt_profile_'+uid);
+ rtSyncBaseline=cache?.baseline||{};
+ try{rtSyncApply(values)}catch(e){rtSyncMessage('本机账号缓存读取失败');return}
+ rtSyncMessage('正在同步账号数据…');rtSyncTick();
+}
+async function rtSyncTick(){
+ if(rtSyncBusy||!rtSyncOwner||rtSyncUid()!==rtSyncOwner)return;
+ rtSyncBusy=true;const uid=rtSyncOwner,generation=rtSyncGeneration;
  try{
   const col=window.rtCloudApp.database().collection('account_backups');
-  const result=await col.where({_id:uid}).get();
-  if(result.error)throw result.error;
-  const docs=Array.isArray(result.data)?result.data:result.data?.list||[];
-  if(rtSyncUid()!==uid||!window.rtLoggedIn)throw Error('账号已改变，请重新操作');
-  if(restore){
-   if(!docs.length)throw Error('此账号还没有云端备份，请先在原设备上传');
-   const b=docs[0];if(b.schema!==1||!b.values||!b.profile)throw Error('备份格式不兼容');
-   const entries=RT_SYNC_KEYS.map(k=>[k,b.values[k]??null]);entries.push([owner,JSON.stringify(b.profile)]);
-   for(const [k,v] of entries){if(v!==null){if(typeof v!=='string')throw Error('备份格式错误');JSON.parse(v)}}
-   const before=entries.map(([k])=>[k,localStorage.getItem(k)]);
-   try{for(const [k,v] of entries){if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}}
-   catch(e){for(const [k,v] of before){if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}throw e}
-   msg.textContent='恢复成功，正在重新加载…';location.reload();
-  }else{
-   const values=Object.fromEntries(RT_SYNC_KEYS.map(k=>[k,localStorage.getItem(k)]));
-   const data={schema:1,profile:rtProfileGet(),values,updatedAt:Date.now()};
-   if(new TextEncoder().encode(JSON.stringify(data)).length>800000)throw Error('备份过大，请更换较小头像后重试');
-   const saved=await col.doc(uid).set(data);if(saved.error)throw saved.error;
-   msg.textContent='云端备份成功 · '+new Date().toLocaleString();
+  const r=await col.where({_id:uid}).get();if(r.error)throw r.error;
+  if(generation!==rtSyncGeneration||rtSyncUid()!==uid)return;
+  const rows=Array.isArray(r.data)?r.data:r.data?.list;
+  if(!Array.isArray(rows))throw Error('云端响应格式异常');
+  const remote=rows[0];if(remote&&remote.schema!==2)throw Error('云端数据版本不兼容');
+  const local=rtSyncSnapshot(),merged={...local},changes={};
+  for(const key of Object.keys(local)){
+   const dirty=local[key]!== (rtSyncBaseline[key]??null);
+   if(dirty){changes[key]=local[key]}
+   else if(remote)merged[key]=remote.values?.[key]??null;
   }
- }catch(e){msg.textContent='同步未完成：'+(e.message||String(e))+'。本机数据保留；请确认云端集合与权限已配置。'}
+  // Pull only fields without pending local edits; edits made during network requests win.
+  if(JSON.stringify(merged)!==JSON.stringify(local))rtSyncApply(merged);
+  if(Object.keys(changes).length||!remote){
+   const values={...(remote?.values||{}),...changes};
+   if(!remote)Object.assign(values,merged);
+   const payload={schema:2,values,updatedAt:Date.now()};
+   if(new TextEncoder().encode(JSON.stringify(payload)).length>800000)throw Error('数据过大，请缩小头像');
+   const w=await col.doc(uid).set(payload);if(w.error)throw w.error;
+   if(generation!==rtSyncGeneration||rtSyncUid()!==uid)return;
+   rtSyncBaseline={...values};
+  }else rtSyncBaseline={...merged};
+  rtSyncReady=true;rtSyncSaveCache();rtSyncMessage('账号数据已同步');
+ }catch(e){if(generation===rtSyncGeneration){rtSyncMessage('暂未同步，数据保留在本机，联网后自动重试');try{rtSyncSaveCache()}catch(_){}console.error('Account sync:',e)}}
  finally{rtSyncBusy=false}
 }
+setInterval(()=>{rtSyncAccountChanged();if(rtSyncOwner){try{rtSyncSaveCache()}catch(e){}rtSyncTick()}},5000);
+window.addEventListener('online',()=>rtSyncTick());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)rtSyncTick();else try{rtSyncSaveCache()}catch(e){}});
