@@ -6,6 +6,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.webkit.ValueCallback;
 import android.content.SharedPreferences;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -49,6 +52,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private WebView webView;
+    private static final int AVATAR_PICK_REQUEST = 481;
+    private ValueCallback<Uri[]> avatarFileCallback;
     private SharedPreferences prefs;
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -84,10 +89,27 @@ public class MainActivity extends Activity implements SensorEventListener {
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
         s.setAllowFileAccess(true);
-        s.setAllowContentAccess(false);
+        s.setAllowContentAccess(true); // Read only the image selected through the system picker.
         s.setAllowFileAccessFromFileURLs(false);
         s.setAllowUniversalAccessFromFileURLs(false);
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
+                                                       WebChromeClient.FileChooserParams params) {
+                if (!HOME_URL.equals(view.getUrl())) { callback.onReceiveValue(null); return true; }
+                if (avatarFileCallback != null) avatarFileCallback.onReceiveValue(null);
+                avatarFileCallback = callback;
+                Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                picker.addCategory(Intent.CATEGORY_OPENABLE);
+                picker.setType("image/*");
+                picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try { startActivityForResult(picker, AVATAR_PICK_REQUEST); }
+                catch (android.content.ActivityNotFoundException e) {
+                    avatarFileCallback = null; callback.onReceiveValue(null);
+                    notifyUser("未找到图片选择器，请选择下方默认头像");
+                }
+                return true;
+            }
+        });
         webView.addJavascriptInterface(new NativeBridge(), "RandomToolboxNative");
         webView.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
@@ -458,7 +480,22 @@ public class MainActivity extends Activity implements SensorEventListener {
             lastBack = now;
         });
     }
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != AVATAR_PICK_REQUEST || avatarFileCallback == null) return;
+        ValueCallback<Uri[]> callback = avatarFileCallback;
+        avatarFileCallback = null;
+        Uri selected = resultCode == RESULT_OK && data != null ? data.getData() : null;
+        if (selected != null) {
+            try {
+                String mime = getContentResolver().getType(selected);
+                if (!"content".equals(selected.getScheme()) || mime == null || !mime.startsWith("image/")) selected = null;
+            } catch (Exception e) { selected = null; }
+        }
+        callback.onReceiveValue(selected == null ? null : new Uri[]{selected});
+    }
     @Override protected void onDestroy() {
+        if (avatarFileCallback != null) { avatarFileCallback.onReceiveValue(null); avatarFileCallback = null; }
         worker.shutdownNow();
         if (sensorManager != null) sensorManager.unregisterListener(this);
         if (webView != null) { webView.destroy(); webView = null; }

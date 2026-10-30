@@ -11,3 +11,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans',sans-serif;line-he
 .hb-art{background:none;clip-path:none}.hb-art>svg{width:100%;height:100%;display:block;overflow:hidden}.hb-welcome>.hb-art{right:16px;width:122px;height:138px}.hb-welcome h2{font-size:19px}.rt-auth:not([hidden])~*{pointer-events:none}
 /* Rotating wheels must not expand the document's horizontal scroll area. */
 #toolBody>.panel{overflow:hidden}
+/* Profile: edit photo on the avatar; save the nickname beside its field. */
+.rt-profile-avatar-wrap{position:relative;width:124px;height:124px;margin:0 auto 28px}
+.rt-profile-avatar-wrap .rt-profile-main{margin:0}
+.rt-avatar-edit{position:absolute;right:-5px;bottom:-3px;width:44px;height:44px;display:grid;place-items:center;border:3px solid var(--bg);border-radius:50%;background:var(--accent);color:#fff;box-shadow:0 3px 10px #33264b20}
+.rt-avatar-edit .hb-icon{width:19px;height:19px}
+.rt-profile-name-row{display:flex;align-items:center;gap:8px;padding:5px;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+.rt-profile-name-row:focus-within{border-color:var(--accent)}
+.rt-profile-name-row input{flex:1;min-width:0;width:100%;padding:10px;border:0;outline:none;background:transparent;color:var(--text);font-size:16px}
+.rt-name-save{flex-shrink:0;min-width:64px;min-height:44px;padding:10px 15px;border:0;border-radius:12px;background:var(--tint);color:var(--accent);font-size:14px}
