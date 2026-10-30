@@ -26,3 +26,5 @@
 ## APK
 
 构建入口为 GitHub Actions 的 Build Android APK。工作区未提供 Android SDK、Gradle 或 CloudBase 发布 key，不能将带假 key 的离线预览作为可交付 APK。独立分支推送后的 Actions 使用仓库原有 secret 构建；APK 情况以最终报告中的实际构建结果为准。
+
+验证结果：46 项浏览器检查通过，未捕获 JS 异常。首次 UI 提交 `64fcca1` 的 Actions 已完成账号 SDK 打包、账号注入、JS 校验、Debug APK 构建和上传：https://github.com/kimizha/RandomToolbox/actions/runs/41058329651 。之后的插画边界修正另由分支最新 Actions 验证。
