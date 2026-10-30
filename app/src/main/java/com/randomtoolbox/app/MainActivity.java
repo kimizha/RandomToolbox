@@ -250,14 +250,16 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (manual) updateStatus("正在检查 APK 更新…");
         worker.execute(() -> {
             try {
+                long checkStarted = System.currentTimeMillis();
                 JSONObject manifest = new JSONObject(new String(downloadWithFallback(MANIFEST_URLS, 32768), StandardCharsets.UTF_8));
+                long elapsed = System.currentTimeMillis() - checkStarted;
                 int latestCode = manifest.optInt("apkVersionCode", 0);
                 String link = manifest.optString("apkUrl", "");
                 String notes = manifest.optString("apkNotes", "发现新版本");
                 int current = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
-                String diag = "当前版本代码：" + current + "\\n服务器版本代码：" + latestCode + "\\n更新地址：" + MANIFEST_URLS[0] + "\\nAPK 地址：" + link;
+                String diag = "当前版本代码：" + current + "\\n服务器版本代码：" + latestCode + "\\n更新地址：" + MANIFEST_URLS[0] + "\\nAPK 地址：" + link + "\\n检查耗时：" + elapsed + "ms";
                 js("var e=document.getElementById('rtUpdateDiagnostic');if(e)e.textContent=" + JSONObject.quote(diag) + ";");
-                if (latestCode > current && link.startsWith("https://github.com/kimizha/RandomToolbox/releases/")) {
+                if (latestCode > current && link.startsWith("https://")) {
                     main.post(() -> new android.app.AlertDialog.Builder(this)
                         .setTitle("发现随机工具箱新版本")
                         .setMessage(notes)
