@@ -4,7 +4,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, dev/cloudbase-auth-integration]
+    branches: [main, dev/cloudbase-auth-integration, ui/android-happybox-redesign]
     paths-ignore:
       - 'build-status/latest-dev-run.json'
 
