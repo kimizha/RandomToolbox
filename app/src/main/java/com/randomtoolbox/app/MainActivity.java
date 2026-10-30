@@ -171,7 +171,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
     private boolean validHtml(String html) {
         return html.length() > 1000 && html.contains("<html") && html.contains("</html>") &&
-            html.contains("随机工具箱") && html.contains("function openTool(") && html.contains("function go(");
+            html.contains("开心盒") && html.contains("function openTool(") && html.contains("function go(");
     }
     private void applyHtml(String html) {
         String b64 = Base64.encodeToString(html.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
@@ -261,7 +261,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 js("var e=document.getElementById('rtUpdateDiagnostic');if(e)e.textContent=" + JSONObject.quote(diag) + ";");
                 if (latestCode > current && link.startsWith("https://")) {
                     main.post(() -> new android.app.AlertDialog.Builder(this)
-                        .setTitle("发现随机工具箱新版本")
+                        .setTitle("发现开心盒新版本")
                         .setMessage(notes)
                         .setNegativeButton("稍后再说", null)
                         .setPositiveButton("前往下载", (dialog, which) -> {
