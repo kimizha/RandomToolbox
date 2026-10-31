@@ -20,6 +20,7 @@ function rtShowProfile(){
  <input id="rtAvatarUpload" type="file" accept="image/*" hidden onchange="rtProfileUpload(event)"></div>
  <label class="rt-profile-label" for="rtProfileName">昵称</label>
  <form class="rt-profile-name-row" onsubmit="event.preventDefault();rtProfileCommit()"><input id="rtProfileName" maxlength="254" placeholder="请输入昵称" autocomplete="nickname"><button type="submit" class="rt-name-save">保存</button></form>
+ <p id="rtProfileNotice" class="rt-profile-notice" role="status" aria-live="polite" hidden></p>
  <p class="rt-profile-note">默认使用登录手机号或邮箱，也可以改成喜欢的昵称。</p>
  <h3>选择头像</h3><div class="rt-avatar-grid" id="rtAvatarGrid"></div>
  <p class="rt-profile-note">点击头像即可保存，也可以点击铅笔从相册选择。</p>
@@ -41,7 +42,7 @@ function rtProfileChoose(k){
  if(!window.rtProfileDraft||!RT_AVATARS.includes(k))return;
  window.rtProfileUploadToken=null;rtProfileStoreAvatar({avatar:k});
 }
-function rtProfileError(m){const e=rtElem('rtProfileError');if(e)e.textContent=m}
+function rtProfileError(m){const e=rtElem('rtProfileError');if(e)e.textContent=m;if(m){const notice=rtElem('rtProfileNotice');if(notice)notice.hidden=true}}
 function rtProfileUpload(ev){const f=ev.target.files?.[0],draft=window.rtProfileDraft;if(!f||!draft)return;if(!f.type.startsWith('image/'))return rtProfileError('请选择图片');if(f.size>12*1024*1024)return rtProfileError('图片不能超过12MB');const token={};window.rtProfileUploadToken=token;rtProfileError('正在处理图片…');const reader=new FileReader();const fail=()=>{if(window.rtProfileUploadToken===token)rtProfileError('图片读取失败，请换一张图片')};reader.onerror=fail;reader.onload=()=>{const im=new Image();im.onerror=fail;im.onload=()=>{if(window.rtProfileUploadToken!==token||window.rtProfileDraft!==draft)return;try{const c=document.createElement('canvas'),size=768;c.width=size;c.height=size;const ctx=c.getContext('2d'),side=Math.min(im.width,im.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);ctx.imageSmoothingQuality='high';ctx.drawImage(im,(im.width-side)/2,(im.height-side)/2,side,side,0,0,size,size);rtProfileStoreAvatar({...draft,photo:c.toDataURL('image/jpeg',.92)})}catch(e){fail()}};im.src=reader.result};reader.readAsDataURL(f);ev.target.value=''}
 function rtProfileCommit(){
  if(!window.rtProfileDraft||window.rtProfileDraftOwner!==rtProfileKey())return rtProfileError('登录状态已改变，请重新打开个人资料');
@@ -50,5 +51,5 @@ function rtProfileCommit(){
  if(!rtProfileSave(p))return rtProfileError('保存失败，本机存储空间不足');
  // Keep the same draft object while an image is decoding, so saving the name does not cancel it.
  Object.assign(window.rtProfileDraft,p);rtElem('rtProfileName').value=name;rtAccountRefresh();rtProfileError('');
- if(typeof toast==='function')toast('昵称已保存');
+ const notice=rtElem('rtProfileNotice');if(notice){clearTimeout(window.rtProfileNoticeTimer);notice.innerHTML=hbIcon('check')+'<span>已保存</span>';notice.hidden=false;window.rtProfileNoticeTimer=setTimeout(()=>{notice.hidden=true},2400)}
 }
