@@ -44,3 +44,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans',sans-serif;line-he
 @media(prefers-reduced-motion:reduce){.coin-in-flight .coin-float,.coin-in-flight .coin-rotor,.coin-in-flight .coin-shadow{animation:none}}
 .art-coin>.hb-game-art{width:100%;height:100%}
 .coin-face{position:absolute;width:100%;height:100%;border-radius:50%}
+/* Compact browsing and home favorites, with music directly below the home subtitle. */
+#catalog .top h1{font-size:25px;line-height:1.35;margin:10px 0 4px;letter-spacing:-.6px}
+#home>.music-widget{margin:18px 0 22px}
+#favArea .fav-big{min-height:180px;padding:20px}
+#favArea .fav-big>.hb-art{width:112px;height:112px;top:38px;right:12px}
+#favArea .fav-big strong{font-size:23px;margin:2px 0 5px}
+#favArea .hb-go{margin-top:18px}
+#favArea .fav-small{min-height:132px;padding:13px;border-radius:21px}
+#favArea .fav-small .hb-art{width:58px;height:58px;margin-bottom:4px}
+#favArea .fav-small strong{font-size:14px}
+#favArea .hb-welcome{min-height:190px;padding:20px}
+.hb-config-button{width:100%;display:flex;align-items:center;gap:12px;border:1px solid var(--accent);border-radius:16px;background:var(--tint);color:var(--accent);padding:14px 16px;margin:17px 0;font-size:16px;min-height:54px}
+.hb-config-button span{flex:1;text-align:left}.hb-config-button>.hb-icon:last-child{width:18px}
+#toolConfig .top h1{font-size:26px;line-height:1.4;margin:8px 0}
+#toolConfig .panel h2{font-size:19px}.hb-config-guide{padding-left:21px;color:var(--muted);font-size:13px;line-height:1.8;margin:15px 0 22px}
+.hb-config-guide li+li{margin-top:8px}#toolConfig textarea{min-height:220px}
+.hb-contact{padding:18px 0;border-top:1px solid var(--line)}.hb-contact h3{margin:0;font-size:15px}
+.hb-contact .email{margin:12px 0;font-size:15px}.hb-contact button{width:100%}
+#ideas .idea-hero{padding-top:0}#ideas .idea-hero>.hb-art{width:72px;height:72px;margin-bottom:12px}

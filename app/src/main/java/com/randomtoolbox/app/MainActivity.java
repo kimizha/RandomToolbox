@@ -472,7 +472,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
     @Override public void onBackPressed() {
         if (webView == null) { super.onBackPressed(); return; }
-        webView.evaluateJavascript("(function(){if(document.getElementById('rtProfileRoot')){rtProfileClose();return 'handled'}var auth=document.getElementById('rtAuthRoot');if(auth&&!auth.hidden){rtBack();return 'handled'}if(document.getElementById('rtModalShade')){document.getElementById('rtModalShade').remove();return 'handled'}var a=document.querySelector('.view.active');if(a&&a.id!=='home'){if(a.id==='game')go('games');else if(a.id==='tool'||a.id==='manage')go('home');else if(a.id==='ideas')go('catalog');else go('home');return 'handled'}return 'home'})()", result -> {
+        webView.evaluateJavascript("(typeof appBack==='function'&&appBack())?'handled':'home'", result -> {
             if ("\"handled\"".equals(result)) { lastBack = 0; return; }
             long now = SystemClock.elapsedRealtime();
             if (now - lastBack < 1800) MainActivity.super.onBackPressed();
