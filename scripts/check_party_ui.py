@@ -2,6 +2,7 @@
 from pathlib import Path
 from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
 from playwright.sync_api import sync_playwright
+from ui_test_helpers import choose
 import threading,functools,json
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'docs/ui-preview';OUT.mkdir(exist_ok=True)
@@ -52,7 +53,7 @@ with sync_playwright() as pw:
  check('Mixed category and mixed performance default',page.evaluate("HBParty.active.category==='mixed'&&HBParty.active.mode==='mixed'"))
  act("HBParty.chooseCharades('category')");check('Category choices styled as cards',page.locator('.hp-option-grid button').count()==7);act("HBParty.applyChoice('category','animal')")
  act("HBParty.chooseCharades('mode')");act("HBParty.applyChoice('mode','mixed')");act("HBParty.applyChoice('category','mixed')")
- act('HBParty.charadesReady()');check('Mixed deck combines all six unique categories',page.evaluate('HBParty.active.words.length===195&&new Set(HBParty.active.words).size===195'))
+ act('HBParty.charadesReady()');check('Mixed deck combines all six unique categories',page.evaluate('HBParty.active.words.length>=300&&new Set(HBParty.active.words).size===HBParty.active.words.length'))
  check('Ready hides answers',page.locator('.hp-word').count()==0);act('HBParty.charadesBegin()');act('HBParty.charadesAnswer(true);HBParty.charadesAnswer(true)');check('Repeated tap only scores once',page.evaluate('HBParty.active.right.length===1'))
  act('HBParty.background()');check('Background pauses charades and hides word',page.evaluate("HBParty.active.stage==='paused'") and page.locator('.hp-word').count()==0)
  act('HBParty.charadesEnd()');accept();check('Charades does not store new scores',store()['results']==[])
@@ -80,7 +81,7 @@ with sync_playwright() as pw:
  boardid=store()['boards'][0]['id'];a,b,c=[p['id'] for p in store()['boards'][0]['players']]
  def add(player,value,to=None):
   act(('HBScore.transfer('+json.dumps(player)+')') if to else 'HBScore.amountDialog('+json.dumps(player)+',1)');page.locator('#hsAmount').fill(str(value))
-  if to:page.locator('#hsTo').select_option(to)
+  if to:choose(page,'#hsTo',to)
   accept()
  add(a,100);add(a,-30)
  check('Independent score totals +70',page.evaluate('HBPartyCore.totals(HBParty.data.boards[0])['+json.dumps(a)+']')==7000)
@@ -102,7 +103,7 @@ with sync_playwright() as pw:
  act('HBScore.ledger()');entry=store()['boards'][0]['entries'][0]['id'];act('HBScore.editEntry('+json.dumps(entry)+')');page.locator('#hsAmount').fill('0.29');accept();check('Transfer edits both legs atomically',sorted(l['amount'] for l in store()['boards'][0]['entries'][0]['legs'])==[-29,29])
  act('HBScore.showBoard()');page.screenshot(path=str(OUT/'party-score.png'),full_page=True)
  # A same-player transfer must not become an unbalanced entry.
- before=store();act('HBScore.transfer('+json.dumps(a)+')');page.locator('#hsTo').select_option(a);accept();check('UI rejects transfer to same player',store()==before and page.locator('#rtModalShade').count()==1);page.locator('#rtCancel').click()
+ before=store();act('HBScore.transfer('+json.dumps(a)+')');choose(page,'#hsTo',a);accept();check('UI rejects transfer to same player',store()==before and page.locator('#rtModalShade').count()==1);page.locator('#rtCancel').click()
  before=store();page.evaluate("()=>{window.originalSet=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw Error('quota test')}}")
  add(a,5,b);check('Storage failure never applies unsaved balances',store()==before);page.evaluate('()=>{Storage.prototype.setItem=originalSet}');page.locator('#rtCancel').click()
  act('HBScore.ledger()');act('HBScore.deleteEntry('+json.dumps(entry)+')');accept();check('Transfer deletion removes both sides',store()['boards'][0]['entries']==[])
@@ -152,7 +153,7 @@ with sync_playwright() as pw:
  page.evaluate("go('home');appBack()");check('Back from other root returns to chosen home',page.evaluate("document.querySelector('.view.active').id==='games'"))
  page.screenshot(path=str(OUT/'party-start-page.png'),full_page=True)
  page.locator('#startPageButton').click();accept();page.reload();page.wait_for_timeout(100);check('Can restore original home',page.evaluate("document.querySelector('.view.active').id==='home'"))
- clean_open('score');act('HBScore.create()');page.locator('#hsUnit').select_option('分');accept();check('Points unit keeps score terminology',page.locator('.hp-transfer').first.inner_text()=='转移积分' and page.locator('#gameBody').get_by_text('添加已有额度',exact=True).count()==1 and page.locator('.hp-money-sign').count()==0)
+ clean_open('score');act('HBScore.create()');choose(page,'#hsUnit','分');accept();check('Points unit keeps score terminology',page.locator('.hp-transfer').first.inner_text()=='转移积分' and page.locator('#gameBody').get_by_text('添加已有额度',exact=True).count()==1 and page.locator('.hp-money-sign').count()==0)
  check('No unexpected external page errors',not errors)
  check('No uncaught browser errors',not errors)
  print(json.dumps({'passed':len(checks),'checks':checks,'errors':errors},ensure_ascii=False,indent=2))

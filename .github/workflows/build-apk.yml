@@ -94,6 +94,7 @@ jobs:
           node --check scripts/sync.js
           node --check scripts/profile.js
           node --check app/src/main/assets/ui/happybox.js
+          node --check app/src/main/assets/ui/choice-sheet.js
           node --check app/src/main/assets/ui/soup-game.js
           node --check app/src/main/assets/ui/party-games.js
           node --check app/src/main/assets/ui/party-score.js

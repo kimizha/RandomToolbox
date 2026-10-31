@@ -1,5 +1,21 @@
 /* Local, host-led lateral-thinking mysteries; answers are never sent to a service. */
 const SOUP_LEVELS={all:'全部难度',easy:'轻松入门',medium:'进阶推理',hard:'烧脑挑战'};
+const SOUP_TYPES={
+ white:{label:'白汤',title:'清汤／白汤',description:'故事中没有人死亡。可能有惊悚气氛，但气氛不代表有人遇害。'},
+ red:{label:'红汤',title:'红汤',description:'故事中有人死亡，但不是故事中全员死亡。'},
+ black:{label:'黑汤',title:'黑汤',description:'故事中的全部人类人物均已死亡，无人生还。'},
+ spicy:{label:'胡辣汤',title:'胡辣汤',description:'故事中有人受伤，但没有人死亡。'},
+ realistic:{label:'本格汤',title:'本格汤',description:'按现实世界的规则，这件事有可能发生，不依赖超自然能力。'},
+ supernatural:{label:'变格汤',title:'变格汤',description:'现实世界中不可能发生，故事可能包含灵异、异世界、时间异常等设定。'}
+};
+function soupTypePill(type,clickable=false){const t=SOUP_TYPES[type];return `<${clickable?'button type="button"':'span'} class="hb-soup-type type-${type}" ${clickable?'onclick="showSoupTypes()" aria-label="本题类型：'+t.label+'，查看解释"':''}>${t.label}</${clickable?'button':'span'}>`}
+function showSoupTypes(){
+ if(party.type!=='soup'||party.stage!=='play')return;const item=soupCurrent();if(!item)return;
+ $('rtModalShade')?.remove();const shade=document.createElement('div');shade.id='rtModalShade';shade.className='rt-modal-shade';
+ shade.innerHTML=`<div class="rt-modal hb-soup-type-dialog" role="dialog" aria-modal="true"><h3>本题的汤类型</h3>${item.types.map(type=>`<section>${soupTypePill(type)}<h4>${SOUP_TYPES[type].title}</h4><p>${SOUP_TYPES[type].description}</p></section>`).join('')}<p class="hint">这些标签说明故事类型，不会展示汤底。</p><button class="primary" id="soupTypesClose">知道了，继续推理</button></div>`;
+ document.body.appendChild(shade);$('soupTypesClose').onclick=()=>shade.remove();
+}
+function soupTypeGuide(){return `<details class="hb-soup-type-guide"><summary>海龟汤黑话指南 · 认识六种标签</summary><p>每道汤都有一个生死标签和一个世界观标签；清汤与胡辣汤都无人死亡，胡辣汤另明确有人受伤。</p>${Object.keys(SOUP_TYPES).map(type=>`<section>${soupTypePill(type)}<p><strong>${SOUP_TYPES[type].title}</strong> · ${SOUP_TYPES[type].description}</p></section>`).join('')}</details>`}
 function soupCases(){return window.RT_GAME_LIBRARY.soups}
 function soupCurrent(){return soupCases().find(item=>item.id===party.soupId)}
 function soupAvailable(){return soupCases().filter(item=>(party.soupDifficulty==='all'||item.difficulty===party.soupDifficulty)&&!party.soupUsed.includes(item.id))}
@@ -38,9 +54,9 @@ function renderSoupGame(box){
  const g=party,item=soupCurrent(),left=soupAvailable().length;
  let html=`<div class="gamebox hb-soup-game"><div class="hb-soup-heading"><h2>海龟汤</h2><button class="hb-truth-reset" onclick="resetSoupGame()" aria-label="重新开始海龟汤">${hbIcon('reset')}<span>重开</span></button></div>`;
  if(g.stage==='setup'){
-  html+=`<div class="hb-soup-welcome">${hbArt('soup')}<h3>一个汤面，藏着另一种可能</h3></div><ol class="hb-soup-rules"><li>一人主持，其他人只看汤面，用提问还原故事。</li><li>主持人看汤底，回答“是／不是／不重要／无法确定”。</li><li>卡住时逐条看提示，讨论结束后再揭晓答案。</li></ol><label class="hb-soup-level" for="soupDifficulty">这次想玩哪种难度？<select id="soupDifficulty" onchange="setSoupDifficulty(this.value)">${Object.entries(SOUP_LEVELS).map(([key,label])=>`<option value="${key}" ${g.soupDifficulty===key?'selected':''}>${label}</option>`).join('')}</select></label><p class="hint">题库共 ${soupCases().length} 题，当前可抽 ${left} 题。本轮换题不会重复。</p><button class="primary" onclick="startSoupGame()">开始一锅汤</button>`;
+  html+=`<div class="hb-soup-welcome">${hbArt('soup')}<h3>一个汤面，藏着另一种可能</h3></div><ol class="hb-soup-rules"><li>一人主持，其他人只看汤面，用提问还原故事。</li><li>主持人看汤底，回答“是／不是／不重要／无法确定”。</li><li>卡住时逐条看提示，讨论结束后再揭晓答案。</li></ol>${soupTypeGuide()}<p class="hint">新汤含有悬疑、死亡与超自然情节，不想玩这一题时可以换题。</p><label class="hb-soup-level" for="soupDifficulty">这次想玩哪种难度？<select id="soupDifficulty" onchange="setSoupDifficulty(this.value)">${Object.entries(SOUP_LEVELS).map(([key,label])=>`<option value="${key}" ${g.soupDifficulty===key?'selected':''}>${label}</option>`).join('')}</select></label><p class="hint">题库共 ${soupCases().length} 题，当前可抽 ${left} 题。本轮换题不会重复。</p><button class="primary" onclick="startSoupGame()">开始一锅汤</button>`;
  }else if(item){
-  html+=`<div class="hb-soup-meta"><span class="hb-soup-tag">${SOUP_LEVELS[item.difficulty]}</span><small>本轮第 ${g.soupUsed.length} 题</small></div><h3 class="hb-soup-title">${escapeHtml(item.title)}</h3><article class="hb-soup-surface"><span>汤面 · 给玩家看的故事</span><p>${escapeHtml(item.surface)}</p></article>
+  html+=`<div class="hb-soup-meta"><span class="hb-soup-tag">${SOUP_LEVELS[item.difficulty]}</span><small>本轮第 ${g.soupUsed.length} 题</small></div><div class="hb-soup-title-row"><h3 class="hb-soup-title">${escapeHtml(item.title)}</h3><div class="hb-soup-type-tags">${item.types.map(type=>soupTypePill(type,true)).join('')}</div></div><article class="hb-soup-surface"><span>汤面 · 给玩家看的故事</span><p>${escapeHtml(item.surface)}</p></article>
   <button class="hb-soup-host-button" onclick="showSoupHost()">${hbIcon('user')}<span>主持人查看汤底</span>${hbIcon('chevron')}</button>
   ${g.soupHints?`<div class="hb-soup-hints"><h4>已经得到的提示</h4><ol>${item.hints.slice(0,g.soupHints).map(h=>`<li>${escapeHtml(h)}</li>`).join('')}</ol></div>`:''}
   ${g.soupAnswerVisible?`<article class="hb-soup-answer" role="status"><span class="hb-soup-tag">汤底 · 答案已揭晓</span><p>${escapeHtml(item.solution)}</p><ul>${item.facts.map(f=>`<li>${escapeHtml(f)}</li>`).join('')}</ul></article>`:''}

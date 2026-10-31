@@ -1,4 +1,5 @@
 from playwright.sync_api import sync_playwright
+from ui_test_helpers import choose
 from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
 import threading,functools,json,tempfile,shutil,subprocess,os
 from pathlib import Path
@@ -239,10 +240,10 @@ with sync_playwright() as pw:
  page.evaluate("window.rtLoggedIn=false;go('games');openGame('soup')")
  check('Soup follows existing login gate',page.locator('#rtAuthRoot').is_visible() and page.locator('#games').evaluate("el=>el.classList.contains('active')"))
  page.evaluate("rtClose();window.rtLoggedIn=true;openGame('soup')")
- check('Soup library and all three difficulty levels available',page.evaluate("soupCases().length===36&&soupAvailable().length===36") and page.locator('#soupDifficulty option').count()==4)
+ check('Soup library and all three difficulty levels available',page.evaluate("soupCases().length>=100&&soupAvailable().length===soupCases().length") and page.locator('#soupDifficulty option').count()==4)
  check('New soup artwork decodes',page.evaluate("async()=>{const im=new Image();im.src='ui/soup-turtle.png';await im.decode();return im.naturalWidth>0}"))
  page.evaluate("document.getElementById('toast').classList.remove('show')");page.wait_for_timeout(250);page.evaluate('window.scrollTo(0,0)');page.wait_for_timeout(120);page.screenshot(path=str(OUT/'soup-start.png'),full_page=False)
- page.locator('#soupDifficulty').select_option('easy');page.locator('#game').get_by_role('button',name='开始一锅汤',exact=True).click()
+ choose(page,'#soupDifficulty','easy');page.locator('#game').get_by_role('button',name='开始一锅汤',exact=True).click()
  check('Selected difficulty controls soup deal',page.evaluate("party.stage==='play'&&soupCurrent().difficulty==='easy'&&party.soupUsed.length===1"))
  solution=page.evaluate('soupCurrent().solution');case_id=page.evaluate('party.soupId')
  check('Soup answer absent from player page before reveal',solution not in page.locator('#game').inner_text() and page.locator('.hb-soup-answer').count()==0)
@@ -268,14 +269,14 @@ with sync_playwright() as pw:
  page.get_by_role('button',name='下一题',exact=True).click();page.locator('#rtAccept').click()
  check('Confirmed skip consumes a different case',page.evaluate('party.soupId')!=second and page.evaluate('party.soupUsed.length===3'))
  page.evaluate('while(soupAvailable().length)dealSoupCase()')
- check('Soup deal exhausts selected bank without repeats',page.evaluate("party.soupUsed.length===12&&new Set(party.soupUsed).size===12&&soupAvailable().length===0"))
+ check('Soup deal exhausts selected bank without repeats',page.evaluate("party.soupUsed.length===soupCases().filter(s=>s.difficulty==='easy').length&&new Set(party.soupUsed).size===party.soupUsed.length&&soupAvailable().length===0"))
  last=page.evaluate('party.soupId');page.evaluate('dealSoupCase()')
  check('Exhausted soup deck does not silently repeat',page.evaluate('party.soupId')==last and page.get_by_role('button',name='下一题',exact=True).is_disabled())
  page.get_by_role('button',name='重新开始海龟汤',exact=True).click();page.locator('#rtCancel').click()
- check('Cancel soup reset preserves case history',page.evaluate('party.soupUsed.length===12'))
+ check('Cancel soup reset preserves case history',page.evaluate("party.soupUsed.length===soupCases().filter(s=>s.difficulty==='easy').length"))
  page.get_by_role('button',name='重新开始海龟汤',exact=True).click();page.locator('#rtAccept').click()
  check('Confirmed soup reset returns to setup',page.evaluate("party.stage==='setup'&&party.soupUsed.length===0&&party.soupId===null"))
- page.locator('#soupDifficulty').select_option('hard');page.get_by_role('button',name='开始一锅汤',exact=True).click()
+ choose(page,'#soupDifficulty','hard');page.get_by_role('button',name='开始一锅汤',exact=True).click()
  check('Hard soup filter applies after reset',page.evaluate("soupCurrent().difficulty==='hard'"))
  for dark in [False,True]:
   page.evaluate("setSetting('dark',"+str(dark).lower()+")")
@@ -285,7 +286,7 @@ with sync_playwright() as pw:
  current=page.evaluate('party.soupId');page.evaluate('appBack()');page.locator('#rtCancel').click()
  check('Cancel leaving soup keeps current case',page.evaluate('party.soupId')==current and page.evaluate("party.stage==='play'"))
  page.evaluate('appBack()');page.locator('#rtAccept').click();page.evaluate("openGame('soup')")
- check('New soup session clears prior case history',page.evaluate("party.stage==='setup'&&party.soupUsed.length===0&&soupAvailable().length===36"))
+ check('New soup session clears prior case history',page.evaluate("party.stage==='setup'&&party.soupUsed.length===0&&soupAvailable().length===soupCases().length"))
  page.evaluate('appBack()')
  page.evaluate("rtProfileClose();go('settings');window.rtSignOutCalls=0;rtAuth={signOut:async()=>{window.rtSignOutCalls++;return {data:{}}}}")
  page.evaluate("rtSyncMessage('账号配置已同步');rtSyncPanel()")
