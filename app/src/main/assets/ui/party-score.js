@@ -4,7 +4,7 @@
  const C=window.HBPartyCore;
  const P=()=>window.HBParty,e=x=>P().e(x),state=()=>P().active;
  const board=()=>P().data.boards.find(b=>b.id===state()?.boardId);
- const b=(text,action,kind='secondary',disabled=false)=>`<button class="${kind}" onclick="HBScore.${action}" ${disabled?'disabled':''}>${text}</button>`;
+ const b=(text,action,kind='secondary',disabled=false)=>`<button class="${kind}" onclick="HBScore.${action}" ${kind.includes('hp-money-sign')?'aria-label="'+(text==='+'?'增加金额':'减少金额')+'"':''} ${disabled?'disabled':''}>${text}</button>`;
  const fmt=n=>(n>0?'+':n<0?'−':'')+(Math.abs(n)/100).toLocaleString('zh-CN',{maximumFractionDigits:2});
  const name=(g,id)=>g.players.find(p=>p.id===id)?.name||'未知玩家';
  function mutate(change,undoable=true){
@@ -13,7 +13,7 @@
  }
  function done(ok){if(ok){P().redraw();toast('已保存到本机');sfx('paper')}return ok}
  function create(){
-  P().modal('新建记分局',`<label>场次名称<input id="hsTitle" maxlength="40" value="朋友的一局"></label><label>显示单位<select id="hsUnit"><option value="分">积分</option><option value="元">金额（仅记录）</option></select></label><label>玩家姓名 · 每行一位（2～12 人）<textarea id="hsPlayers" rows="4" placeholder="小开心&#10;小幸运">玩家 1\n玩家 2</textarea></label><p class="hint">先添加玩家，再按需录入已有额度。加减分与玩家间转移可在同一局使用，账目只保存在本机。</p>`,()=>{
+  P().modal('新建记分局',`<label>场次名称<input id="hsTitle" maxlength="40" value="朋友的一局"></label><label>显示单位<select id="hsUnit"><option value="元">金额</option><option value="分">积分</option></select></label><label>玩家姓名 · 每行一位（2～12 人）<textarea id="hsPlayers" rows="4" placeholder="小开心&#10;小幸运">玩家 1\n玩家 2</textarea></label><p class="hint">先添加玩家，再按需录入已有额度。加减分与玩家间转移可在同一局使用。</p>`,()=>{
    const title=$('hsTitle').value.trim(),players=P().lines($('hsPlayers').value,2,12);if(!title)throw Error('请填写场次名称');if(players.some(n=>n.length>20))throw Error('玩家姓名最多 20 字');
    const id=P().uid(),mode='independent',unit=$('hsUnit').value;
    if(!P().commit(d=>{if(d.boards.length>=100)throw Error('已保存 100 场，请先删除不需要的历史场次');d.boards.unshift({id,title,mode,unit,created:Date.now(),closed:false,players:players.map(n=>({id:P().uid(),name:n,archived:false})),entries:[],undo:null})}))return false;
@@ -36,10 +36,10 @@
  }
  function amountDialog(id,sign=1,editing=null,transferring=false){
   const g=board();if(!g||g.closed)return;const old=editing?g.entries.find(x=>x.id===editing):null;if(editing&&!old)return;
-  const transfer=old?old.legs.length===2:transferring,from=old?.legs[0].player||id||g.players.find(x=>!x.archived)?.id,to=old?.legs[1]?.player||g.players.find(x=>!x.archived&&x.id!==from)?.id;
+  const money=g.unit==='元',transfer=old?old.legs.length===2:transferring,from=old?.legs[0].player||id||g.players.find(x=>!x.archived)?.id,to=old?.legs[1]?.player||g.players.find(x=>!x.archived&&x.id!==from)?.id;
   const delta=old?(transfer?old.legs[1].amount:old.legs[0].amount):(transfer?1000:sign*1000);
   const players=transfer?`<div class="hp-two"><label>减少的一方<select id="hsFrom">${playerOptions(g,from,!!old)}</select></label><label>增加的一方<select id="hsTo">${playerOptions(g,to,!!old)}</select></label></div>`:`<label>玩家<select id="hsFrom">${playerOptions(g,from,!!old)}</select></label>`;
-  P().modal(old?'修改这笔记录':transfer?'玩家间转移':sign>0?'加分':'减分',players+`<label>${transfer?'转移数值（正数）':'增减数值（负号代表减少）'}<input id="hsAmount" type="number" inputmode="decimal" step="0.01" value="${delta/100}"></label><div class="hp-quick">${(transfer?[10,20,50,100]:[10,20,50,100,-10,-20,-50,-100]).map(n=>b((n>0?'+':'')+n,`fill(${n})`)).join('')}</div><label>备注（可选）<input id="hsNote" maxlength="120" value="${e(old?.note||'')}" placeholder="如：第 2 轮"></label><p class="hint">${transfer?'保存时生成同一笔配平流水，任何修改和删除都会同时处理双方。':'最多两位小数，保存后立即更新累计。'}</p>`,()=>{
+  P().modal(old?'修改这笔记录':transfer?(money?'向其他玩家转账':'转移积分'):sign>0?(money?'增加金额':'加分'):(money?'减少金额':'减分'),players+`<label>${transfer?(money?'转移金额（正数）':'转移数值（正数）'):(money?'增减金额（负号代表减少）':'增减数值（负号代表减少）')}<input id="hsAmount" type="number" inputmode="decimal" step="0.01" value="${delta/100}"></label><div class="hp-quick">${(transfer?[10,20,50,100]:[10,20,50,100,-10,-20,-50,-100]).map(n=>b((n>0?'+':'')+n,`fill(${n})`)).join('')}</div><label>备注（可选）<input id="hsNote" maxlength="120" value="${e(old?.note||'')}" placeholder="如：第 2 局"></label><p class="hint">${transfer?'保存时生成同一笔配平流水，任何修改和删除都会同时处理双方。':'最多两位小数，保存后立即更新累计。'}</p>`,()=>{
    const player=$('hsFrom').value,target=$('hsTo')?.value,delta=C.amount($('hsAmount').value),note=$('hsNote').value;
    // Editing historical entries may reference removed players. They remain part of the ledger.
    const inputBoard={...g,mode:transfer?'transfer':'independent',players:old?g.players.map(p=>({...p,archived:false})):g.players};
@@ -50,9 +50,9 @@
  function transfer(id){amountDialog(id,1,null,true)}
  function opening(){
   const g=board();if(!g||g.closed)return;
-  P().modal('添加已有额度',`<p class="hint">填写每位玩家开始前已有的本钱或积分。初始额度会计入余额，但不计入净增减。再次保存会更新初始额度，不会重复累加。</p>${g.players.filter(p=>!p.archived).map(p=>`<label>${e(p.name)}<input class="hs-opening" data-player="${e(p.id)}" type="number" step="0.01" inputmode="decimal" min="0" value="${(C.initials(g)[p.id]||0)/100}"></label>`).join('')}`,()=>{
+  P().modal(g.unit==='元'?'添加已有金额':'添加已有额度',`<p class="hint">填写每位玩家开始前已有的${g.unit==='元'?'金额':'积分'}。初始${g.unit==='元'?'金额':'额度'}计入余额，不计入净增减；再次保存只更新原值，不会重复累加。</p>${g.players.filter(p=>!p.archived).map(p=>`<label>${e(p.name)}<input class="hs-opening" data-player="${e(p.id)}" type="number" step="0.01" inputmode="decimal" min="0" value="${(C.initials(g)[p.id]||0)/100}"></label>`).join('')}`,()=>{
    const values=[...document.querySelectorAll('.hs-opening')].map(input=>{const text=input.value.trim();if(!text)throw Error('请填写初始额度，没有则填 0');const n=Number(text)===0&&/^0+(\.0{1,2})?$/.test(text)?0:C.amount(text);if(n<0)throw Error('初始额度不能为负数');return {player:input.dataset.player,amount:n}});
-   return done(mutate(d=>{for(const v of values){d.entries=d.entries.filter(x=>!(x.kind==='opening'&&x.legs[0].player===v.player));if(v.amount)d.entries.push({id:P().uid(),at:Date.now(),kind:'opening',note:'初始额度',legs:[v]})}if(d.entries.length>5000)throw Error('本局记录已满，请新建一局')}));
+   return done(mutate(d=>{for(const v of values){d.entries=d.entries.filter(x=>!(x.kind==='opening'&&x.legs[0].player===v.player));if(v.amount)d.entries.push({id:P().uid(),at:Date.now(),kind:'opening',note:d.unit==='元'?'初始金额':'初始额度',legs:[v]})}if(d.entries.length>5000)throw Error('本局记录已满，请新建一局')}));
   });
  }
  function pure(on=true){if(!board())return;state().pure=on;P().redraw();window.scrollTo(0,0)}
@@ -67,7 +67,7 @@
  function deleteBoard(id){const g=P().data.boards.find(x=>x.id===id);if(!g)return;rtDialog('删除这场记分局？','“'+g.title+'”及其全部流水将从本机删除，无法恢复。',()=>{if(P().commit(d=>d.boards=d.boards.filter(x=>x.id!==id))){list();toast('已删除')}})}
  function clearAll(){rtDialog('清除所有本地记分数据？','包括正在记录和已经封存的所有场次。不会影响其他玩法。',()=>rtDialog('再次确认永久删除','所有记分场次与流水将被永久删除，此操作不能撤销。',()=>{if(P().commit(d=>d.boards=[])){list();toast('记分数据已清除')}}))}
  function render(box){
-  const s=state(),g=board(),clean=!!s.pure&&s.page==='board';document.body.classList.toggle('hp-score-pure',clean);let html=clean?b('‹ 返回完整记账','pure(false)','hp-pure-back'):P().header('score','记录余额与净增减，支持加分、减分和玩家间转移。账目只保存在本机。');
+  const s=state(),g=board(),clean=!!s.pure&&s.page==='board';document.body.classList.toggle('hp-score-pure',clean);let html=clean?b('‹ 返回完整记账','pure(false)','hp-pure-back'):P().header('score','记录余额与净增减，支持加减和玩家间转移。')+(clean?'':'<aside class="hp-ledger-notice">🔴 如进行棋牌、麻将活动，建议只使用“向其他玩家转账”功能。</aside>');
   if(P().readError)html+=`<p class="hp-error" role="alert">${e(P().readError)}</p>`;
   if(s.page==='list'||!g){
    html+=b('新建记分局','create()','primary');
@@ -77,8 +77,8 @@
    html+=`<div class="hp-heading"><h3>${e(g.title)} · 详细流水</h3>${b('返回记分','showBoard()','hp-small')}</div><div class="hp-ledger">${g.entries.length?[...g.entries].reverse().map(x=>`<article><div class="hp-ledger-lines">${x.legs.map(l=>`<p><strong>${e(name(g,l.player))}</strong><span class="${l.amount<0?'hp-negative':'hp-positive'}">${fmt(l.amount)} ${e(g.unit)}</span></p>`).join('')}</div><small>${new Date(x.at).toLocaleString()}${x.note?' · '+e(x.note):''}</small>${g.closed?'':`<div class="hp-two">${b('修改',`editEntry('${e(x.id)}')`,'hp-small')}${b('删除',`deleteEntry('${e(x.id)}')`,'hp-small')}</div>`}</article>`).join(''):'<p class="hint">还没有记录，返回记分区添加第一笔。</p>'}</div>`;
   }else{
    const total=C.totals(g),initial=C.initials(g);
-   if(!clean)html+=`<div class="hp-heading"><div><h3>${e(g.title)}</h3><small>${g.closed?'历史场次 · 只读':'独立记分'}</small></div>${b('纯净模式','pure()','hp-small')}</div>${g.closed?'':b('添加已有额度','opening()','secondary')}`;
-   html+=`<div class="hp-score-players">${g.players.filter(p=>!p.archived).map(p=>`<article class="hp-score-card"><div class="hp-player-title"><button class="hp-name" ${clean||g.closed?'disabled':`onclick="HBScore.editPlayer('${e(p.id)}')"`}>${e(p.name)}${clean||g.closed?'':hbIcon('edit')}</button><small class="hp-initial">初始额度 ${fmt(initial[p.id]||0).replace(/^\+/, '')}</small>${g.closed||clean?'':b('移除',`removePlayer('${e(p.id)}')`,'hp-small')}</div><div class="hp-balance-row"><strong class="hp-total">${fmt(total[p.id]).replace(/^\+/, '')}<small>${e(g.unit)}</small></strong><span class="hp-net ${(total[p.id]-initial[p.id])<0?'hp-negative':'hp-positive'}">${fmt(total[p.id]-initial[p.id])}</span></div>${g.closed?'':`<div class="hp-two">${b('− 减分',`amountDialog('${e(p.id)}',-1)`)}${b('+ 加分',`amountDialog('${e(p.id)}',1)`,'primary')}</div>${b('转移积分',`transfer('${e(p.id)}')`,'hp-transfer')}`}</article>`).join('')}</div>`;
+   if(!clean)html+=`<div class="hp-heading"><div><h3>${e(g.title)}</h3><small>${g.closed?'历史场次 · 只读':'独立记分'}</small></div>${b('纯净模式','pure()','hp-small')}</div>${g.closed?'':b(g.unit==='元'?'添加已有金额':'添加已有额度','opening()','secondary')}`;
+   html+=`<div class="hp-score-players">${g.players.filter(p=>!p.archived).map(p=>`<article class="hp-score-card"><div class="hp-player-title"><button class="hp-name" ${clean||g.closed?'disabled':`onclick="HBScore.editPlayer('${e(p.id)}')"`}>${e(p.name)}${clean||g.closed?'':hbIcon('edit')}</button><small class="hp-initial">初始${g.unit==='元'?'金额':'额度'} ${fmt(initial[p.id]||0).replace(/^\+/, '')}</small>${g.closed||clean?'':b('移除',`removePlayer('${e(p.id)}')`,'hp-small')}</div><div class="hp-balance-row"><strong class="hp-total">${fmt(total[p.id]).replace(/^\+/, '')}<small>${e(g.unit)}</small></strong><span class="hp-net ${(total[p.id]-initial[p.id])<0?'hp-negative':'hp-positive'}">${fmt(total[p.id]-initial[p.id])}</span></div>${g.closed?'':`<div class="hp-two">${b(g.unit==='元'?'−':'− 减分',`amountDialog('${e(p.id)}',-1)`,g.unit==='元'?'secondary hp-money-sign':'secondary')}${b(g.unit==='元'?'+':'+ 加分',`amountDialog('${e(p.id)}',1)`,g.unit==='元'?'primary hp-money-sign':'primary')}</div>${b(g.unit==='元'?'向其他玩家转账':'转移积分',`transfer('${e(p.id)}')`,'hp-transfer')}`}</article>`).join('')}</div>`;
    if(!clean){
    if(g.players.some(p=>p.archived))html+=`<details class="hp-records"><summary>已移除玩家 · 历史累计保留</summary>${g.players.filter(p=>p.archived).map(p=>`<p>${e(p.name)}：${fmt(total[p.id])} ${e(g.unit)}</p>`).join('')}</details>`;
    html+=`<div class="hp-two">${b('详细流水（'+g.entries.length+'）','ledger()')}${g.closed?'':b('撤销上一步','undo()','secondary',!g.undo)}</div>`;

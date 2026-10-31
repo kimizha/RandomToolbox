@@ -2,7 +2,7 @@
 (function(){
  'use strict';
  const C=window.HBPartyCore,KEY='hb_party_local_v1',types=['bomb','charades','taboo','score'];
- const titles={bomb:'数字炸弹',charades:'你演我猜',taboo:'别让我做',score:'聚会计分板'};
+ const titles={bomb:'数字炸弹',charades:'你演我猜',taboo:'别让我做',score:'棋牌流水记账'};
  let active=null,link=null,truthSession=null,timer=null,deadline=0,lastTap=0,readError='';
  let data={version:1,boards:[],results:[],custom:{charades:[],truth:[],dare:[]}};
  try{const raw=localStorage.getItem(KEY);if(raw)data=C.validateStore(JSON.parse(raw))}catch(e){readError='本地玩法数据读取失败，已保留原始内容。请先备份或检查存储空间。'}

@@ -22,7 +22,7 @@ with sync_playwright() as pw:
  page.evaluate("localStorage.clear();setSetting('speed','fast');setSetting('sound',false);toggleFav('coin');toggleFav('wheel');toggleFav('dice');toggleFav('draw');go('home')")
  page.wait_for_timeout(100);page.evaluate("document.getElementById('toast').classList.remove('show')");page.wait_for_timeout(250);page.screenshot(path=str(OUT/'home.png'),full_page=False)
  check('Four favorites rendered',page.locator('#favArea button').count()==4)
- check('Music sits between subtitle and favorites',page.evaluate("(()=>{const sub=document.querySelector('#home>.sub').getBoundingClientRect(),m=document.getElementById('musicWidget').getBoundingClientRect(),f=document.getElementById('favArea').getBoundingClientRect();return sub.bottom<m.top&&m.bottom<f.top})()"))
+ check('Music card removed',page.locator('#musicWidget,audio').count()==0)
  check('Favorites main card is compact',page.locator('.fav-big').bounding_box()['height']<200)
  check('Tools title is compact',page.evaluate("parseFloat(getComputedStyle(document.querySelector('#catalog h1')).fontSize)<=25"))
 

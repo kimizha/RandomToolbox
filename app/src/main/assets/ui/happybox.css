@@ -113,3 +113,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans',sans-serif;line-he
 .hb-soup-note{font-size:11px;line-height:1.8;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin:18px 0 0}
 .hb-soup-host{max-height:84dvh;overflow:auto;text-align:left}.hb-soup-host>h3{margin-top:17px}.hb-soup-host>p{color:var(--text);font-size:15px;line-height:1.85}.hb-soup-host>ul{padding-left:19px;font-size:13px;line-height:1.8}.hb-soup-host>h4{font-size:14px}
 .hb-art>img{width:100%;height:100%;object-fit:contain;display:block}
+/* Persistent back controls in long pages and scrollable account sheets. */
+.view>.back,#toolConfig .back,.hp-pure-back,.rt-back,.rt-profile-back{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:block;min-height:48px;max-width:100%;width:fit-content;padding:12px 16px;background:var(--bg)!important;border:1px solid var(--line);border-radius:15px;box-shadow:0 5px 14px #30234508}
+.hp-pure-back{width:100%;margin-bottom:16px}
+.hb-start-page{flex-shrink:0;min-height:44px;padding:10px 13px;margin-top:12px;border:1px solid var(--line);border-radius:14px;background:var(--tint);color:var(--accent);font-size:12px}
+#games .top>div{min-width:0}
+.hp-ledger-notice{margin:16px 0 22px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:var(--tint);color:var(--text);font-size:13px;line-height:1.8}
+.hp-two .hp-money-sign{font-size:32px;line-height:1.15;min-height:56px;font-weight:500;padding:6px 12px}
+@media(max-width:360px){#games .top h1{font-size:27px}.hb-start-page{padding:9px;font-size:11px}}
+.hp-score-pure .hp-score{overflow:visible}
