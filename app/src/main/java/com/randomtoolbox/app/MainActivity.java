@@ -401,6 +401,13 @@ public class MainActivity extends Activity implements SensorEventListener {
                 nativeVibrate(pattern);
             } catch (Exception ignored) {}
         }
+        @JavascriptInterface public void setPartyOrientation(String direction) {
+            if (!"portrait".equals(direction) && !"landscape".equals(direction) && !"auto".equals(direction)) return;
+            main.post(() -> setRequestedOrientation("landscape".equals(direction)
+                ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : "portrait".equals(direction) ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED));
+        }
         @JavascriptInterface public void setDarkMode(boolean dark) { main.post(() -> applySystemTheme(dark)); }
         @JavascriptInterface public String getMusicCover(String relativePath) {
             if (relativePath == null || !relativePath.startsWith("music/")
@@ -449,7 +456,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
     @Override protected void onPause() {
         if (sensorManager != null) sensorManager.unregisterListener(this);
-        if (webView != null) webView.onPause();
+        if (webView != null) {
+            webView.evaluateJavascript("if(window.hbPartyPause)window.hbPartyPause();", null);
+            webView.onPause();
+        }
         super.onPause();
     }
     @Override public void onSensorChanged(SensorEvent e) {
