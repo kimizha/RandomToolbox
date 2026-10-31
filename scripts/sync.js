@@ -40,7 +40,7 @@ function rtSyncApply(uid,values){
  const previousDraw=JSON.stringify(drawItems);
  settings=Object.assign({dark:false,vibe:true,sound:true,volume:65,speed:'normal'},get('settings',{}));
  wheelItems=get('wheelItems',['吃火锅','看电影','去散步','打游戏','喝奶茶','在家休息']);drawItems=get('drawItems',['选项一','选项二','选项三']);
- favorites=get('favorites',[]).filter(x=>toolIds.includes(x));if(JSON.stringify(drawItems)!==previousDraw)remaining=[];
+ favorites=get('favorites',[]).filter(x=>toolIds.includes(x)).slice(0,1);if(JSON.stringify(drawItems)!==previousDraw)remaining=[];
  initSettings();renderFav();renderCatalog();renderManage();rtAccountRefresh();
  if(document.querySelector('.view.active')?.id==='tool'&&activeTool==='wheel'&&!busy)renderWheel();
 }

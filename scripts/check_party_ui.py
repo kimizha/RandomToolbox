@@ -135,12 +135,12 @@ with sync_playwright() as pw:
  # Version 2.9: money labels, common tools, start page preference and sticky navigation.
  page.evaluate("party.stage='end';HBParty.active.stage='end';go('catalog')")
  page.locator('#catalog').get_by_role('button',name='加入常用：棋牌流水记账',exact=True).click();page.evaluate("go('home')")
- check('Ledger appears as first common tool','棋牌流水记账' in page.locator('.fav-big').inner_text())
- page.locator('.fav-big').click();check('Common ledger card opens real journal',page.evaluate("HBParty.active.type==='score'&&HBParty.active.page==='list'"))
+ check('Ledger appears as first common tool','棋牌流水记账' in page.locator('#favArea .fav-big').inner_text())
+ page.locator('#favArea .fav-big').click();check('Common ledger card opens real journal',page.evaluate("HBParty.active.type==='score'&&HBParty.active.page==='list'"))
  page.reload();page.wait_for_timeout(100);check('Ledger favorite retained after reload',page.evaluate("favorites.includes('score')"))
  check('No music card or audio element remains',page.locator('#musicWidget,audio').count()==0)
  clean_open('score');act('HBScore.create()');check('Money is default unit',page.locator('#hsUnit').input_value()=='元');accept();a,b=[p['id'] for p in store()['boards'][0]['players']]
- check('Money board uses money labels',page.locator('#gameBody').get_by_text('添加已有金额',exact=True).count()==1 and page.locator('.hp-money-sign').count()==4 and page.locator('.hp-transfer').first.inner_text()=='向其他玩家转账')
+ check('Money board uses money labels',page.locator('#gameBody').get_by_text('添加现有金额',exact=True).count()==1 and page.locator('.hp-money-sign').count()==4 and page.locator('.hp-transfer').first.inner_text()=='向其他玩家转账')
  check('Board reminder is visible without old storage sentence','🔴' in page.locator('.hp-ledger-notice').inner_text() and '账目只保存在本机' not in page.locator('#gameBody').inner_text())
  act('HBScore.transfer('+json.dumps(a)+')');check('Transfer uses money label and round wording','转移金额' in page.locator('.hp-modal').inner_text() and page.locator('#hsNote').get_attribute('placeholder')=='如：第 2 局');page.locator('#rtCancel').click()
  act('HBScore.pure()');page.set_viewport_size({'width':320,'height':568});page.evaluate('window.scrollTo(0,600)');page.wait_for_timeout(300);pureback=page.locator('.hp-pure-back').bounding_box();check('Pure Back remains visible on scroll',pureback['y']>=-1 and pureback['y']<64);page.evaluate('appBack()');page.set_viewport_size({'width':390,'height':844})

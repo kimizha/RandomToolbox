@@ -23,6 +23,7 @@ function client(s,uid='a',storage=new Map()){
  const a=client(s);await a.login();
  check('Fresh install restores configuration immediately',()=>assert.equal(a.storage.get('rt_wheelItems'),serial(['云端火锅','云端面条'])));
  check('Fresh install restores profile and favorites',()=>{assert.equal(a.storage.get('rt_profile_a'),s.records.a.values.rt_profile_a);assert.equal(a.storage.get('rt_favorites'),serial(['wheel','coin']))});
+ check('Restored legacy favorites display only the first choice',()=>assert.equal(JSON.stringify(a.ctx.favorites),serial(['wheel'])));
  check('Restore never overwrites a populated cloud backup with defaults',()=>assert.equal(s.writes.length,0));
  await a.edit('rt_wheelItems',['自定义一','自定义二']);
  check('Saved configuration reaches existing schema and collection',()=>{assert.equal(s.records.a.schema,2);assert.equal(s.records.a.values.rt_wheelItems,serial(['自定义一','自定义二']))});
