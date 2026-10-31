@@ -90,6 +90,7 @@ jobs:
           node --check scripts/profile.js
           node --check app/src/main/assets/ui/happybox.js
           node scripts/check_sync.cjs
+          python3 scripts/check_release.py
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -186,15 +187,35 @@ jobs:
       - name: Build debug APK
         if: env.RT_STABLE_SIGNING == 'true'
         run: gradle :app:assembleDebug --no-daemon
-      - name: Verify fixed APK certificate
+      - name: Verify APK identity, fixed certificate and prior APK compatibility
         if: env.RT_STABLE_SIGNING == 'true'
-        run: '"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RT_PREVIOUS_APK_ARTIFACT_ID: '13027661359'
+        run: python3 scripts/verify_signed_apk.py
       - name: Upload APK
         if: env.RT_STABLE_SIGNING == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: RandomToolbox-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Publish verified UI prerelease
+        if: github.ref == 'refs/heads/ui/android-happybox-redesign' && env.RT_STABLE_SIGNING == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/publish_ui_release.py
+      - name: Upload public APK verification report
+        if: env.RT_STABLE_SIGNING == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Happybox-APK-verification
+          path: |
+            release-output/verification.json
+            release-output/SHA256SUMS
+            release-output/release-info.json
           if-no-files-found: error
 
       - name: Publish successful development APK as prerelease

@@ -51,3 +51,11 @@ python3 scripts/install_android_signing_secrets.py /你的私密签名包目录 
 - 固定签名预检已验证未配置/部分配置/完整密钥三种情况。
 - 真实 CloudBase 权限与真实账号跨设备恢复仍需账号实测；若状态提示权限拒绝，需要管理员核对现有集合对当前 UID 的读写权限，不应开放公共读写。本次没有修改云端安全规则。
 - Android 覆盖安装仍需使用实际固定签名 APK 在手机上验证。若旧版本已卸载且数据当时未上传，无法从新安装中找回已删除的本机配置。
+
+## UI 分支 Release 发布验证
+
+签名 Secrets 已由仓库管理员配置后，构建直接验证密钥能否打开，不读取或输出 Secret 原文。安装包必须通过 apksigner 验证，证书必须与配置的密钥证书 SHA-256 相同，包名必须为 `com.randomtoolbox.app`，versionCode 必须与工作流计算值一致，versionName 必须与源码一致。
+
+构建会读取此前提供的 APK（Actions artifact `13027661359`）的公开证书进行比较。只比较证书与元数据，不读取旧私钥；签名不同会在 Release 中明确说明无法覆盖安装，真实账号云端备份尚未确认，不建议直接卸载。
+
+通过验证后，仅 UI 分支可发布 `ui-v<版本>-code<versionCode>` prerelease，tag 指向本次精确提交，并保持 `latest=false`；不改 main，不覆盖已有 Release。公开附件包括 APK、`verification.json` 和 `SHA256SUMS`，不含签名密码或私钥。7 项离线发布检查覆盖包名/版本/证书错误拒绝、main 发布拒绝及签名不同的迁移提示。
