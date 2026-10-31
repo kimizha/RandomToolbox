@@ -89,6 +89,8 @@ jobs:
           node --check scripts/sync.js
           node --check scripts/profile.js
           node --check app/src/main/assets/ui/happybox.js
+          node --check app/src/main/assets/ui/soup-game.js
+          node scripts/check_game_library.cjs
           node scripts/check_sync.cjs
           python3 scripts/check_release.py
       - name: Setup Gradle

@@ -17,7 +17,7 @@ android {
         minSdk 26
         targetSdk 28
         versionCode Integer.parseInt(System.getenv('ANDROID_VERSION_CODE') ?: '16')
-        versionName '2.7'
+        versionName '2.8'
     }
 
     signingConfigs {
