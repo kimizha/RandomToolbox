@@ -150,3 +150,15 @@ to{transform:translate(var(--x),var(--y)) rotate(180deg);opacity:0}
 .hp-modal select{appearance:none;padding-right:32px;background:var(--bg)}
 @media(max-width:360px){.hp-symbol{width:62px;height:62px}.hp-heading>.hp-symbol{width:70px;height:70px}.hp-select-card{padding-left:14px}.hp-select-card strong{font-size:15px}}
 @media(orientation:landscape) and (max-height:540px){.hp-countdown-screen>strong{font-size:80px}.hp-countdown-screen>p{font-size:13px;margin:0}}
+.hp-spy-warning{margin:18px 0;padding:17px;border:1px solid #e2af53;border-radius:18px;background:#fff3d8;color:#795113;font-size:14px;line-height:1.8}
+.hp-spy-warning strong{font-size:16px}.hp-spy-warning p{margin:8px 0 0}.dark .hp-spy-warning{background:#3b3020;color:#f2d398;border-color:#806037}
+.hp-catalog-art{display:block;width:108px;height:108px;margin:0 auto 18px}.hp-catalog-art svg{width:100%;height:100%;overflow:hidden}
+.hp-player-title{align-items:center;flex-wrap:wrap}.hp-initial{font-size:11px;color:var(--muted);white-space:nowrap;margin-left:auto}
+.hp-balance-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.hp-balance-row .hp-total{min-width:0;font-size:32px}
+.hp-net{padding:9px 13px;border-radius:13px;background:var(--tint);font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;max-width:48%;overflow-wrap:anywhere}
+.hp-transfer{width:100%;min-height:44px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--accent);font:inherit;font-size:14px}
+.hp-pure-back{display:block;width:100%;padding:14px;text-align:left;border:0;border-radius:14px;background:var(--tint);color:var(--accent);font:inherit;font-weight:650}
+.hp-score-pure .nav,.hp-score-pure #game>.back{display:none}.hp-score-pure .app{padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.hp-score-pure .hp-score{background:transparent;border:0;padding:0!important;box-shadow:none}.hp-score-pure .hp-score-card{background:var(--card)}
+@media(max-width:360px){.hp-balance-row .hp-total{font-size:28px}.hp-net{font-size:16px;padding:8px 10px}.hp-initial{font-size:10px}}
+.hp-score .hp-name:disabled{opacity:1;color:var(--text)}

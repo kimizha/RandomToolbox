@@ -2,7 +2,7 @@
 (function(){
  'use strict';
  const C=window.HBPartyCore,KEY='hb_party_local_v1',types=['bomb','charades','taboo','score'];
- const titles={bomb:'数字炸弹',charades:'你演我猜',taboo:'别让我做',score:'聚会记分板'};
+ const titles={bomb:'数字炸弹',charades:'你演我猜',taboo:'别让我做',score:'聚会计分板'};
  let active=null,link=null,truthSession=null,timer=null,deadline=0,lastTap=0,readError='';
  let data={version:1,boards:[],results:[],custom:{charades:[],truth:[],dare:[]}};
  try{const raw=localStorage.getItem(KEY);if(raw)data=C.validateStore(JSON.parse(raw))}catch(e){readError='本地玩法数据读取失败，已保留原始内容。请先备份或检查存储空间。'}
@@ -35,7 +35,7 @@
   if(mode==='auto'){try{screen.orientation?.unlock()}catch(_){}return}
   if(screen.orientation?.lock)screen.orientation.lock(mode==='landscape'?'landscape':'portrait').catch(()=>toast('当前预览不支持锁定方向，请旋转设备；任务布局已切换'));
  }
- function cleanup(){stop();if(active?.type==='taboo'){active.visible=false;orientation('auto')}active=null;document.body.classList.remove('hp-task-display')}
+ function cleanup(){document.body.classList.remove('hp-score-pure');stop();if(active?.type==='taboo'){active.visible=false;orientation('auto')}active=null;document.body.classList.remove('hp-task-display')}
  function open(type){if(!types.includes(type))return;cleanup();link=null;openGame(type)}
  function init(type){
   if(active?.type===type)return;
@@ -43,13 +43,13 @@
   if(type==='bomb')Object.assign(active,{min:1,max:100,bomb:null});
   if(type==='charades')Object.assign(active,{category:'mixed',seconds:60,mode:'mixed',left:60000,words:[],i:0,right:[],skipped:[]});
   if(type==='taboo')Object.assign(active,{n:1,guests:0,direction:'portrait',round:1,index:0,tasks:[],used:[],visible:false,counting:false,hasShown:false});
-  if(type==='score')Object.assign(active,{page:'list',boardId:null});
+  if(type==='score')Object.assign(active,{page:'list',boardId:null,pure:false});
  }
  function setStage(stage){active.stage=stage;party.stage=stage}
  function redraw(){if(!active)return;renderGame()}
  function render(type,box){
   if(!types.includes(type))return false;init(type);party.stage=active.stage;
-  if(type==='score'){$('game').querySelector('.back').textContent=active.page==='ledger'?'‹ 返回记分板':active.page==='board'?'‹ 返回场次':'‹ 返回趣味玩法';window.HBScore.render(box);return true}
+  if(type==='score'){$('game').querySelector('.back').textContent=active.page==='ledger'?'‹ 返回记分板':active.pure?'‹ 返回完整记账':active.page==='board'?'‹ 返回场次':'‹ 返回工具';window.HBScore.render(box);return true}
   box.innerHTML=`<div class="gamebox hp-game hp-${type}">${type==='bomb'?renderBomb():type==='charades'?renderCharades():renderTaboo()}</div>`;
   if(type==='taboo')document.body.classList.toggle('hp-task-display',(active.visible||active.counting));
   return true;
@@ -168,6 +168,8 @@
  }
  function beforeBack(){
   if(link){rtDialog('返回原玩法？',link.source.type==='bomb'?'返回后可重新设置数字范围。':'当前挑战会收起，返回后可以继续原来的游戏。',returnChallenge);return true}
+  if(active?.type==='score'&&active.pure){HBScore.pure(false);return true}
+  if(active?.type==='score'&&active.page==='list'){go('catalog');return true}
   if(active?.type==='score'&&active.page==='ledger'){active.page='board';redraw();return true}
   if(active?.type==='score'&&active.page==='board'){active.page='list';active.boardId=null;setStage('setup');redraw();return true}
   return false;
@@ -188,10 +190,10 @@
  window.hbPartyPause=background;
  document.addEventListener('DOMContentLoaded',()=>{
   const menu=$('games');
-  for(const type of types){const row=document.createElement('button');row.className='row hp-menu-row';row.onclick=()=>open(type);row.innerHTML=`<span class="hp-symbol hp-symbol-${type}">${icon(type)}</span><span class="info"><strong>${titles[type]}</strong><small>${{bomb:'范围越小，心跳越快',charades:'比一比默契，演出你的脑洞',taboo:'别让朋友猜到你的任务',score:'记录每一局，账目留在本机'}[type]}</small></span>${hbIcon('chevron')}`;menu.appendChild(row)}
-  document.addEventListener('pointerdown',ev=>{if(ev.target.closest('.hp-game button,.hp-task-screen button'))vibrate(10)},{passive:true});
+  for(const type of types.filter(t=>t!=='score')){const row=document.createElement('button');row.className='row hp-menu-row';row.onclick=()=>open(type);row.innerHTML=`<span class="hp-symbol hp-symbol-${type}">${icon(type)}</span><span class="info"><strong>${titles[type]}</strong><small>${{bomb:'范围越小，心跳越快',charades:'比一比默契，演出你的脑洞',taboo:'别让朋友猜到你的任务',score:'记录每一局，账目留在本机'}[type]}</small></span>${hbIcon('chevron')}`;menu.appendChild(row)}
+  document.addEventListener('pointerdown',ev=>{if(active?.type!=='score'&&ev.target.closest('.hp-game button,.hp-task-screen button'))vibrate(10)},{passive:true});
  });
- window.HBParty={open,render,truthExtras,truthIntro,truthBank,guardNavigate,beforeBack,background,modal,commit,lines,uid,redraw,setStage,button,header,e,
+ window.HBParty={open,render,scoreIcon:()=>icon('score'),truthExtras,truthIntro,truthBank,guardNavigate,beforeBack,background,modal,commit,lines,uid,redraw,setStage,button,header,e,
   get active(){return active},get data(){return data},get readError(){return readError},
   bombStart,bombGuess,restartBomb,bombSetup,charadesConfig,chooseCharades,applyChoice,charadesReady,charadesBegin,charadesAnswer,charadesEnd,charadesReset,pause,
   tabooConfig,chooseGuests,setGuests,tabooStart,tabooShow,tabooHide,tabooDirection,tabooSuccess,tabooNext,challenge,returnChallenge,leave:()=>go('games')};

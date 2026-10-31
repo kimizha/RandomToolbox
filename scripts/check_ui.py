@@ -27,7 +27,7 @@ with sync_playwright() as pw:
  check('Tools title is compact',page.evaluate("parseFloat(getComputedStyle(document.querySelector('#catalog h1')).fontSize)<=25"))
 
  page.reload();page.wait_for_timeout(100);check('Favorites survive reload',page.locator('#favArea button').count()==4)
- page.evaluate("go('catalog')");check('Six tool cards',page.locator('.hb-tool-card').count()==6)
+ page.evaluate("go('catalog')");check('Seven tool cards',page.locator('.hb-tool-card').count()==7)
  page.evaluate("setSetting('dark',true)");page.wait_for_timeout(100);page.screenshot(path=str(OUT/'tools-dark.png'),full_page=False)
  check('Dark mode applied',page.locator('body').evaluate("el=>el.classList.contains('dark')"))
  for w in [320,360,390,430]:

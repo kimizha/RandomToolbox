@@ -27,7 +27,9 @@ with sync_playwright() as pw:
   act("HBParty.open('"+game+"')")
  def store():return page.evaluate('HBParty.data')
  check('Four existing games retained',all(page.locator('#games').get_by_text(t,exact=True).count()==1 for t in ['狼人杀','真心话大冒险','谁是卧底','海龟汤']))
- check('Four new games listed once',page.locator('.hp-menu-row').count()==4)
+ check('Score moved out of games',page.locator('.hp-menu-row').count()==3 and page.locator('#games').get_by_text('聚会计分板',exact=True).count()==0)
+ page.evaluate("go('catalog')");check('Score available in tools',page.locator('#catalog').get_by_text('聚会计分板',exact=True).count()==1)
+ page.evaluate("go('games');openGame('spy')");check('Spy warning visible on entry','⚠️' in page.locator('.hp-spy-warning').inner_text() and '主动' in page.locator('.hp-spy-warning').inner_text());page.evaluate("go('games')")
  for width,height in [(320,568),(360,640),(390,844)]:
   page.set_viewport_size({'width':width,'height':height})
   for dark in [False,True]:
@@ -77,7 +79,7 @@ with sync_playwright() as pw:
  page.set_viewport_size({'width':390,'height':844})
  boardid=store()['boards'][0]['id'];a,b,c=[p['id'] for p in store()['boards'][0]['players']]
  def add(player,value,to=None):
-  act('HBScore.amountDialog('+json.dumps(player)+',1)');page.locator('#hsAmount').fill(str(value))
+  act(('HBScore.transfer('+json.dumps(player)+')') if to else 'HBScore.amountDialog('+json.dumps(player)+',1)');page.locator('#hsAmount').fill(str(value))
   if to:page.locator('#hsTo').select_option(to)
   accept()
  add(a,100);add(a,-30)
@@ -94,18 +96,42 @@ with sync_playwright() as pw:
  act('HBScore.addPlayer()');page.locator('#hsName').fill('新朋友');accept();check('Player can be added mid-session',len(store()['boards'][0]['players'])==4)
  act('HBScore.editPlayer('+json.dumps(a)+')');page.locator('#hsName').fill('开心队长');accept();check('Player rename persisted',store()['boards'][0]['players'][0]['name']=='开心队长')
  act('HBScore.close()');accept();check('Finish archives session',store()['boards'][0]['closed'])
- act('HBScore.create()');page.locator('#hsTitle').fill('平衡记分测试');page.locator('#hsMode').select_option('transfer');accept();newid=store()['boards'][0]['id'];a,b=[p['id'] for p in store()['boards'][0]['players']]
- act('HBScore.amountDialog('+json.dumps(a)+',-1)');check('Transfer minus button starts positive amount',page.locator('#hsAmount').input_value()=='10');page.locator('#hsAmount').fill('100');accept()
+ act('HBScore.create()');page.locator('#hsTitle').fill('平衡记分测试');accept();newid=store()['boards'][0]['id'];a,b=[p['id'] for p in store()['boards'][0]['players']]
+ act('HBScore.transfer('+json.dumps(a)+')');check('Transfer button starts positive amount',page.locator('#hsAmount').input_value()=='10');page.locator('#hsAmount').fill('100');accept()
  check('Transfer stores a single balanced transaction',len(store()['boards'][0]['entries'])==1 and sum(l['amount'] for l in store()['boards'][0]['entries'][0]['legs'])==0)
  act('HBScore.ledger()');entry=store()['boards'][0]['entries'][0]['id'];act('HBScore.editEntry('+json.dumps(entry)+')');page.locator('#hsAmount').fill('0.29');accept();check('Transfer edits both legs atomically',sorted(l['amount'] for l in store()['boards'][0]['entries'][0]['legs'])==[-29,29])
  act('HBScore.showBoard()');page.screenshot(path=str(OUT/'party-score.png'),full_page=True)
  # A same-player transfer must not become an unbalanced entry.
- before=store();act('HBScore.amountDialog('+json.dumps(a)+',1)');page.locator('#hsTo').select_option(a);accept();check('UI rejects transfer to same player',store()==before and page.locator('#rtModalShade').count()==1);page.locator('#rtCancel').click()
+ before=store();act('HBScore.transfer('+json.dumps(a)+')');page.locator('#hsTo').select_option(a);accept();check('UI rejects transfer to same player',store()==before and page.locator('#rtModalShade').count()==1);page.locator('#rtCancel').click()
  before=store();page.evaluate("()=>{window.originalSet=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw Error('quota test')}}")
  add(a,5,b);check('Storage failure never applies unsaved balances',store()==before);page.evaluate('()=>{Storage.prototype.setItem=originalSet}');page.locator('#rtCancel').click()
  act('HBScore.ledger()');act('HBScore.deleteEntry('+json.dumps(entry)+')');accept();check('Transfer deletion removes both sides',store()['boards'][0]['entries']==[])
  page.reload();page.wait_for_timeout(100);clean_open('score');check('Two sessions persist independently',len(store()['boards'])==2 and store()['boards'][1]['closed'])
  act('HBScore.select('+json.dumps(newid)+')');page.evaluate('appBack()');check('Score board Back returns to saved session list',page.evaluate("HBParty.active.page==='list'"))
+ # Initial credit, net change and pure mode share the same persisted journal.
+ act('HBScore.create()');check('New boards have no mode selector',page.locator('#hsMode').count()==0);accept();a,b=[p['id'] for p in store()['boards'][0]['players']]
+ page.evaluate("window.haptics=[];window.RandomToolboxNative={vibrate:n=>haptics.push(n),setPartyOrientation:()=>{}}")
+ act('HBScore.opening()');page.locator('.hs-opening').nth(0).fill('500');accept();add(a,65)
+ check('Initial 500 plus 65 displays balance 565',page.locator('.hp-total').first.inner_text().replace('\n','').startswith('565'))
+ check('Initial and net displayed separately','500' in page.locator('.hp-initial').first.inner_text() and page.locator('.hp-net').first.inner_text()=='+65')
+ act('HBScore.opening()');page.locator('.hs-opening').nth(0).fill('500');accept();check('Saving opening twice never doubles balance',page.evaluate('HBPartyCore.totals(HBParty.data.boards[0])['+json.dumps(a)+']')==56500)
+ add(a,20,b);check('Transfer changes both balance and net without changing initial',page.locator('.hp-net').first.inner_text()=='+45' and '500' in page.locator('.hp-initial').first.inner_text())
+ act('HBScore.pure()');check('Pure mode hides management',page.locator('#gameBody').get_by_text('添加玩家',exact=True).count()==0 and page.locator('#gameBody').get_by_text('添加已有额度',exact=True).count()==0 and '详细流水' not in page.locator('#gameBody').inner_text())
+ check('Pure mode retains recording and explicit Back',page.locator('.hp-transfer').count()==2 and page.locator('.hp-pure-back').is_visible())
+ for width,height in [(320,568),(390,844)]:
+  page.set_viewport_size({'width':width,'height':height});check(f'Pure mode {width}px no overflow',page.evaluate('document.documentElement.scrollWidth<=innerWidth'))
+ add(a,-10);check('Pure mode updates the same ledger',page.locator('.hp-net').first.inner_text()=='+35')
+ page.screenshot(path=str(OUT/'score-pure.png'),full_page=True)
+ page.evaluate('appBack()');check('Android Back exits pure mode first',page.evaluate('!HBParty.active.pure&&HBParty.active.page==="board"'))
+ page.locator('.hp-score-card .primary').first.dispatch_event('pointerdown');page.locator('.hp-score-card .primary').first.dispatch_event('pointermove');page.evaluate('window.scrollTo(0,400);vibrate(25)');check('Score actions and scroll never vibrate',page.evaluate('haptics.length===0'))
+ page.evaluate('window.scrollTo(0,0)');page.screenshot(path=str(OUT/'score-initial-credit.png'),full_page=True)
+ current=store()['boards'][0]['id'];page.reload();page.wait_for_timeout(100);clean_open('score');act('HBScore.select('+json.dumps(current)+')');check('Opening credit survives reload',page.locator('.hp-net').first.inner_text()=='+35' and '500' in page.locator('.hp-initial').first.inner_text())
+ act('HBScore.clear()');accept();accept();check('Clear removes initial credit too',page.locator('.hp-initial').first.inner_text().endswith('0'))
+ act('HBScore.undo()');accept();check('Undo restores initial and balances together',page.locator('.hp-net').first.inner_text()=='+35' and '500' in page.locator('.hp-initial').first.inner_text())
+ page.evaluate('appBack()');page.evaluate('appBack()');check('Score list returns to tools',page.evaluate("document.querySelector('.view.active').id==='catalog'"))
+ # A pre-update transfer board remains usable and is converted without dropping its entries.
+ clean_open('score');page.evaluate("HBParty.commit(d=>d.boards.unshift({id:'legacy',title:'旧转移局',mode:'transfer',unit:'分',created:1,closed:false,players:[{id:'a',name:'旧玩家A'},{id:'b',name:'旧玩家B'}],entries:[{id:'old',at:1,note:'旧流水',legs:[{player:'a',amount:-10000},{player:'b',amount:10000}]}],undo:null}))")
+ act("HBScore.select('legacy')");add('a',10);check('Old transfer board preserves history and supports adjustment',store()['boards'][0]['entries'][0]['id']=='old' and page.locator('.hp-total').first.inner_text().startswith('−90'))
  check('No unexpected external page errors',not errors)
  check('No uncaught browser errors',not errors)
  print(json.dumps({'passed':len(checks),'checks':checks,'errors':errors},ensure_ascii=False,indent=2))
