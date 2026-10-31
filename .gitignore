@@ -1,0 +1,12 @@
+.gradle/
+app/build/
+build/
+local.properties
+__pycache__/
+*.pyc
+*.keystore
+*.jks
+*.p12
+ANDROID_KEYSTORE_*.txt
+ANDROID_KEY_PASSWORD.txt
+ANDROID_KEY_ALIAS.txt

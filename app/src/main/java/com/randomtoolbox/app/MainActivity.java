@@ -231,7 +231,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                   box.onchange=function(){
                     var st=JSON.parse(localStorage.getItem('rt_settings')||'{}');
                     st.shake=box.checked;
-                    localStorage.setItem('rt_settings',JSON.stringify(st));
+                    localStorage.setItem('rt_settings',JSON.stringify(st));if(typeof rtSyncLocalChanged==='function')rtSyncLocalChanged('rt_settings');
                     if(typeof settings!=='undefined')settings.shake=box.checked;
                   };
                   row.appendChild(label);row.appendChild(box);

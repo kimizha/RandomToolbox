@@ -1,10 +1,10 @@
-/* Profile edits are scoped to the signed-in UID; cloud sync remains deferred. */
+/* Profile edits use the signed-in UID and the existing account sync path. */
 const RT_AVATARS=['wolf','fox','panda','cat','bear','frog','rabbit','penguin','shiba'];
 const RT_AVATAR_NAMES=['小灰狼','小狐狸','熊猫','小猫','小熊','青蛙','兔子','企鹅','柴犬'];
 function rtProfileKey(){const id=rtUser?.uid||rtUser?.id||rtUser?._id;return id?'rt_profile_'+String(id):null}
 function rtProfileGet(){const k=rtProfileKey();if(!k)return {};try{const p=JSON.parse(localStorage.getItem(k)||'{}');return p&&typeof p==='object'&&!Array.isArray(p)?p:{}}catch(e){return {}}}
-function rtProfileSave(p){const k=rtProfileKey();if(!k)return false;try{localStorage.setItem(k,JSON.stringify(p));return true}catch(e){return false}}
-function rtProfileDefaultName(p=rtProfileGet()){return String(p.defaultName||rtUser?.phone||rtUser?.phoneNumber||rtUser?.email||rtUser?.emailAddress||rtUser?.username||'开心盒用户').replace(/^\+86\s*/, '')}
+function rtProfileSave(p){const k=rtProfileKey();if(!k)return false;try{localStorage.setItem(k,JSON.stringify(p));if(typeof rtSyncLocalChanged==='function')rtSyncLocalChanged(k);return true}catch(e){return false}}
+function rtProfileDefaultName(p=rtProfileGet()){return String(p.defaultName||rtUser?.phone||rtUser?.phoneNumber||rtUser?.email||rtUser?.emailAddress||rtUser?.username||rtLoginContact||'开心盒用户').replace(/^\+86\s*/, '')}
 function rtProfileName(p=rtProfileGet()){return p.name||rtProfileDefaultName(p)}
 function rtApplyAvatar(el,p){if(!el)return;const i=Math.max(0,RT_AVATARS.indexOf(p.avatar||'shiba'));const photo=typeof p.photo==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(p.photo)?p.photo:null;el.style.backgroundImage='url("'+(photo||RT_AVATAR_SPRITE)+'")';el.style.backgroundSize=photo?'cover':'300% 300%';el.style.backgroundPosition=photo?'center':(i%3*50)+'% '+(Math.floor(i/3)*50)+'%'}
 function rtAccountRefresh(){const guest=!window.rtLoggedIn,p=guest?{}:rtProfileGet();const name=rtElem('rtAccountName'),status=rtElem('rtUserStatus'),badge=rtElem('rtAccountBadge');if(name)name.textContent=guest?'欢迎来到开心盒':rtProfileName(p);if(status)status.textContent=!rtSessionKnown?'正在检查登录状态…':guest?'登录后，开启更多趣味玩法':'查看和编辑个人资料';if(badge)badge.textContent=guest?'游客':'已登录';rtApplyAvatar(rtElem('rtAccountAvatar'),p)}

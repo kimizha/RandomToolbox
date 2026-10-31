@@ -63,3 +63,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans',sans-serif;line-he
 .hb-contact{padding:18px 0;border-top:1px solid var(--line)}.hb-contact h3{margin:0;font-size:15px}
 .hb-contact .email{margin:12px 0;font-size:15px}.hb-contact button{width:100%}
 #ideas .idea-hero{padding-top:0}#ideas .idea-hero>.hb-art{width:72px;height:72px;margin-bottom:12px}
+.hb-tool-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+#toolBody .hb-tool-heading h2{margin:0;font-size:23px;min-width:0}
+.hb-config-inline{flex-shrink:0;min-height:42px;border:0;border-radius:12px;padding:9px 12px;background:var(--tint);color:var(--accent);font-size:13px;font-weight:700}
+#toolBody .tool-wheel{padding-top:16px;padding-bottom:16px}
+#toolBody .wheel-wrap{width:min(64vw,260px,max(120px,calc(100dvh - 500px)));height:min(64vw,260px,max(120px,calc(100dvh - 500px)));margin:18px auto}
+#toolBody .tool-wheel .result{min-height:58px;font-size:25px}
+#toolBody .tool-wheel .primary{margin-top:8px}
+.hb-config-example{display:grid;gap:3px;margin-top:10px;padding:11px 13px;border-radius:12px;background:var(--bg);color:var(--text)}
+.hb-config-example span{display:block;font-size:13px}
+.rt-sync-summary{font-size:12px;line-height:1.6;color:var(--muted);margin:10px 0}
+.rt-sync-summary[hidden]{display:none}.rt-sync-modal{max-height:85dvh;overflow:auto}
+.rt-sync-modal>button{width:100%;margin-top:12px}.rt-sync-modal #rtSyncError{color:#bc5367;font-size:12px;overflow-wrap:anywhere}
+.rt-sync-modal #rtSyncImport[hidden]{display:none}

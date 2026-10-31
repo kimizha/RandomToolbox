@@ -1,0 +1,66 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync(__dirname+'/sync.js','utf8');
+const clone=x=>JSON.parse(JSON.stringify(x));
+const serial=JSON.stringify;
+const seed=(id,changes={})=>({schema:2,values:{rt_settings:serial({dark:true,vibe:false,sound:true,volume:35,speed:'slow'}),rt_wheelItems:serial(['云端火锅','云端面条']),rt_drawItems:serial(['云端甲','云端乙']),rt_favorites:serial(['wheel','coin']),['rt_profile_'+id]:serial({name:'云端昵称',avatar:'fox'}),...changes},updatedAt:1});
+const clients=[];let checks=0;
+function check(name,fn){fn();checks++;console.log('PASS '+name)}
+function server(records={}){return {records:clone(records),writes:[],readError:null,writeError:null,beforeRead:null,beforeWrite:null}}
+function client(s,uid='a',storage=new Map()){
+ const timers=new Set(),ctx={console:{error:()=>{}},TextEncoder,Date,JSON,Set,Map,Promise,Error,Math};
+ Object.assign(ctx,{window:{rtLoggedIn:!!uid},rtUser:uid?{uid}:null,rtSessionKnown:true,settings:{},wheelItems:[],drawItems:[],favorites:[],remaining:[],busy:false,activeTool:null,toolIds:['coin','wheel','draw','dice','number','rps'],rtElem:()=>null,rtProfileClose:()=>{},rtAccountRefresh:()=>{},renderFav:()=>{},renderCatalog:()=>{},renderManage:()=>{},renderWheel:()=>{},initSettings:()=>{ctx.uiRefreshes++},uiRefreshes:0,document:{querySelector:()=>null,addEventListener:()=>{},hidden:false}});
+ ctx.window.addEventListener=()=>{};
+ ctx.setInterval=()=>0;ctx.setTimeout=(fn,ms)=>{const h=setTimeout(()=>{timers.delete(h);fn()},ms);timers.add(h);return h};ctx.clearTimeout=h=>{clearTimeout(h);timers.delete(h)};
+ ctx.localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)};
+ ctx.get=(key,fallback)=>{try{return JSON.parse(storage.get('rt_'+key)??'null')??fallback}catch(_){return fallback}};
+ ctx.window.rtCloudApp={database:()=>({collection:name=>{assert.equal(name,'account_backups');return {where:({_id})=>({get:async()=>{if(s.beforeRead)await s.beforeRead(_id);if(s.readError)return {error:s.readError};return {data:s.records[_id]?[clone(s.records[_id])]:[]}}}),doc:id=>({set:async payload=>{if(s.beforeWrite)await s.beforeWrite(id);if(s.writeError)return {error:s.writeError};s.records[id]=clone(payload);s.writes.push({id,payload:clone(payload)});return {data:{}}}})}}})};
+ vm.createContext(ctx);vm.runInContext(source,ctx);
+ const c={ctx,storage,run:code=>vm.runInContext(code,ctx),async login(id=uid){ctx.window.rtLoggedIn=!!id;ctx.rtUser=id?{uid:id}:null;this.run('rtSyncAccountChanged()');await this.run('rtSyncTick()');this.run('clearTimeout(rtSyncTimer)')},async sync(){await this.run('rtSyncTick()');this.run('clearTimeout(rtSyncTimer)')},async edit(key,value){ctx.localStorage.setItem(key,serial(value));this.run(`rtSyncLocalChanged(${serial(key)})`);await this.sync()},dispose(){for(const h of timers)clearTimeout(h)}};
+ clients.push(c);return c;
+}
+(async()=>{
+ const s=server({a:seed('a'),b:seed('b',{rt_wheelItems:serial(['B一','B二'])})});
+ const a=client(s);await a.login();
+ check('Fresh install restores configuration immediately',()=>assert.equal(a.storage.get('rt_wheelItems'),serial(['云端火锅','云端面条'])));
+ check('Fresh install restores profile and favorites',()=>{assert.equal(a.storage.get('rt_profile_a'),s.records.a.values.rt_profile_a);assert.equal(a.storage.get('rt_favorites'),serial(['wheel','coin']))});
+ check('Restore never overwrites a populated cloud backup with defaults',()=>assert.equal(s.writes.length,0));
+ await a.edit('rt_wheelItems',['自定义一','自定义二']);
+ check('Saved configuration reaches existing schema and collection',()=>{assert.equal(s.records.a.schema,2);assert.equal(s.records.a.values.rt_wheelItems,serial(['自定义一','自定义二']))});
+ const fresh=client(s);await fresh.login();
+ check('Reinstall restores last uploaded settings',()=>assert.equal(fresh.storage.get('rt_wheelItems'),serial(['自定义一','自定义二'])));
+ const legacy=client(s,'a',new Map([['rt_profile_a',serial({defaultName:'phone'})]]));await legacy.login();
+ check('Legacy login default profile cannot erase cloud name/avatar',()=>{const p=JSON.parse(s.records.a.values.rt_profile_a);assert.equal(p.name,'云端昵称');assert.equal(p.avatar,'fox')});
+ await a.login('b');
+ check('Switching account restores B without leaking A preferences',()=>{assert.equal(a.storage.get('rt_wheelItems'),serial(['B一','B二']));assert.equal(JSON.parse(a.storage.get('rt_sync_cache_a')).values.rt_wheelItems,serial(['自定义一','自定义二']))});
+ await a.login('a');check('Switching back restores A',()=>assert.equal(a.storage.get('rt_wheelItems'),serial(['自定义一','自定义二'])));
+ s.readError={code:'PERMISSION_DENIED',message:'denied'};await a.edit('rt_drawItems',['离线一','离线二']);
+ check('Permission failure keeps edits locally and exposes a useful error',()=>{assert.equal(a.storage.get('rt_drawItems'),serial(['离线一','离线二']));assert.equal(a.run('rtSyncReady'),false);assert.match(a.run('rtSyncError'),/权限/)});
+ s.readError=null;const restarted=client(s,'a',new Map(a.storage));await restarted.login();
+ check('Offline changes survive process restart and upload after reconnect',()=>assert.equal(s.records.a.values.rt_drawItems,serial(['离线一','离线二'])));
+ let release;const gate=new Promise(r=>release=r);const delayed=server({a:seed('a')});delayed.beforeRead=()=>gate;
+ const race=client(delayed);race.run('rtSyncAccountChanged()');race.ctx.localStorage.setItem('rt_settings',serial({dark:false,vibe:true,sound:false,volume:65,speed:'normal'}));race.run("rtSyncLocalChanged('rt_settings')");release();await race.sync();
+ check('Edit during initial restore preserves cloud fields user did not change',()=>{const prefs=JSON.parse(race.storage.get('rt_settings'));assert.equal(prefs.dark,true);assert.equal(prefs.volume,35);assert.equal(prefs.sound,false)});
+ let releaseA;const aGate=new Promise(r=>releaseA=r),two=server({a:seed('a'),b:seed('b',{rt_favorites:serial(['dice'])})});two.beforeRead=id=>id==='a'?aGate:Promise.resolve();
+ const switched=client(two);switched.run('rtSyncAccountChanged()');switched.ctx.rtUser={uid:'b'};switched.run('rtSyncAccountChanged()');releaseA();await switched.sync();await switched.sync();
+ check('A stale response from A cannot populate B after account switch',()=>assert.equal(switched.storage.get('rt_favorites'),serial(['dice'])));
+ const guest=client(s,'a',new Map([['rt_wheelItems',serial(['游客甲','游客乙'])]]));await guest.login();
+ check('Guest settings are retained locally but do not silently overwrite account data',()=>{assert.equal(JSON.parse(guest.storage.get('rt_sync_guest_cache')).values.rt_wheelItems,serial(['游客甲','游客乙']));assert.equal(guest.storage.get('rt_wheelItems'),s.records.a.values.rt_wheelItems)});
+ let releaseWrite;const writeGate=new Promise(r=>releaseWrite=r),during=server({a:seed('a')});const writer=client(during);await writer.login();during.beforeWrite=()=>writeGate;
+ writer.ctx.localStorage.setItem('rt_wheelItems',serial(['第一版甲','第一版乙']));const firstWrite=writer.sync();await new Promise(r=>setTimeout(r,0));writer.ctx.localStorage.setItem('rt_wheelItems',serial(['第二版甲','第二版乙']));writer.run("rtSyncLocalChanged('rt_wheelItems')");releaseWrite();await firstWrite;during.beforeWrite=null;await writer.sync();
+ check('Edit made during upload is not marked synced or lost',()=>assert.equal(during.records.a.values.rt_wheelItems,serial(['第二版甲','第二版乙'])));
+ const bad=server({a:{...seed('a'),schema:3}}),badClient=client(bad);await badClient.login();
+ check('Unsupported schema is reported without replacing cloud data',()=>{assert.equal(bad.writes.length,0);assert.match(badClient.run('rtSyncError'),/版本不兼容/)});
+ const broken=server({a:seed('a',{rt_wheelItems:'not-json'})}),brokenClient=client(broken);await brokenClient.login();
+ check('Malformed remote JSON never becomes local configuration',()=>{assert.equal(broken.writes.length,0);assert.equal(brokenClient.ctx.localStorage.getItem('rt_wheelItems'),null)});
+ const huge=server({a:seed('a')}),hugeClient=client(huge);await hugeClient.login();await hugeClient.edit('rt_profile_a',{name:'头像太大',photo:'data:image/jpeg;base64,'+'a'.repeat(810000)});
+ check('Oversized avatar stays local, while cloud data and failure state are preserved',()=>{assert.equal(JSON.parse(hugeClient.storage.get('rt_profile_a')).name,'头像太大');assert.equal(JSON.parse(huge.records.a.values.rt_profile_a).name,'云端昵称');assert.match(hugeClient.run('rtSyncError'),/过大/)});
+ const progress=client(s);await progress.login();progress.run("remaining=['本轮尚未抽取']");await progress.edit('rt_profile_a',{name:'新昵称',avatar:'cat'});
+ check('Profile sync does not reset an in-progress draw round',()=>assert.equal(progress.run('remaining.length'),1));
+ const blockedStorage=client(s,'a',new Map([['rt_wheelItems',serial(['本机一','本机二'])]]));const originalSet=blockedStorage.ctx.localStorage.setItem;blockedStorage.ctx.localStorage.setItem=(k,v)=>{if(k==='rt_sync_active_uid')throw Error('Quota');originalSet(k,v)};await blockedStorage.login();
+ check('Storage failure before ownership transition cannot erase local options',()=>assert.equal(blockedStorage.storage.get('rt_wheelItems'),serial(['本机一','本机二'])));
+ const photoServer=server({a:seed('a',{'rt_profile_a':serial({name:'照片昵称',avatar:'fox',photo:'data:image/jpeg;base64,test'})})}),photoClient=client(photoServer);await photoClient.login();await photoClient.edit('rt_profile_a',{name:'照片昵称',avatar:'cat'});
+ check('Selecting default avatar removes a prior cloud photo',()=>assert.equal(JSON.parse(photoServer.records.a.values.rt_profile_a).photo,undefined));
+ const failedWrite=server({a:seed('a')}),failedWriter=client(failedWrite);await failedWriter.login();failedWrite.writeError={code:'PERMISSION_DENIED',message:'denied'};await failedWriter.edit('rt_wheelItems',['写入失败一','写入失败二']);
+ check('Cloud write rejection preserves both local changes and previous remote backup',()=>{assert.equal(failedWriter.storage.get('rt_wheelItems'),serial(['写入失败一','写入失败二']));assert.equal(failedWrite.records.a.values.rt_wheelItems,serial(['云端火锅','云端面条']));assert.equal(failedWriter.run('rtSyncReady'),false)});
+ console.log(`Account synchronization: ${checks} scenarios passed; no real cloud data accessed.`);
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>clients.forEach(c=>c.dispose()));
