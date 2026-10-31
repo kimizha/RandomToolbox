@@ -56,6 +56,6 @@ python3 scripts/install_android_signing_secrets.py /你的私密签名包目录 
 
 签名 Secrets 已由仓库管理员配置后，构建直接验证密钥能否打开，不读取或输出 Secret 原文。安装包必须通过 apksigner 验证，证书必须与配置的密钥证书 SHA-256 相同，包名必须为 `com.randomtoolbox.app`，versionCode 必须与工作流计算值一致，versionName 必须与源码一致。
 
-构建会读取此前提供的 APK（Actions artifact `13027661359`）的公开证书进行比较。只比较证书与元数据，不读取旧私钥；签名不同会在 Release 中明确说明无法覆盖安装，真实账号云端备份尚未确认，不建议直接卸载。
+构建优先读取首个固定签名 Release `ui-v2.7-code100142` 的公开 APK 进行比较，无法取得时回退到早期临时签名 APK（Actions artifact `13027661359`）；验证报告会记录实际比较来源。只比较证书与元数据，不读取旧私钥；签名不同会在 Release 中明确说明无法覆盖安装，真实账号云端备份尚未确认，不建议直接卸载。
 
 通过验证后，仅 UI 分支可发布 `ui-v<版本>-code<versionCode>` prerelease，tag 指向本次精确提交，并保持 `latest=false`；不改 main，不覆盖已有 Release。公开附件包括 APK、`verification.json` 和 `SHA256SUMS`，不含签名密码或私钥。7 项离线发布检查覆盖包名/版本/证书错误拒绝、main 发布拒绝及签名不同的迁移提示。

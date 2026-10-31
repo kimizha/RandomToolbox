@@ -191,6 +191,7 @@ jobs:
         if: env.RT_STABLE_SIGNING == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          RT_PREVIOUS_APK_RELEASE_TAG: 'ui-v2.7-code100142'
           RT_PREVIOUS_APK_ARTIFACT_ID: '13027661359'
         run: python3 scripts/verify_signed_apk.py
       - name: Upload APK

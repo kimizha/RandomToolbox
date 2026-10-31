@@ -76,3 +76,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans',sans-serif;line-he
 .rt-sync-summary[hidden]{display:none}.rt-sync-modal{max-height:85dvh;overflow:auto}
 .rt-sync-modal>button{width:100%;margin-top:12px}.rt-sync-modal #rtSyncError{color:#bc5367;font-size:12px;overflow-wrap:anywhere}
 .rt-sync-modal #rtSyncImport[hidden]{display:none}
+/* Truth or dare: one session, balanced choices and explicit deck reset. */
+.hb-truth-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:18px}
+.gamebox .hb-truth-heading h2{font-size:21px;line-height:1.35;margin:0;letter-spacing:-.5px}
+.hb-truth-reset{display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;min-height:42px;padding:8px 10px;border:0;border-radius:12px;background:var(--tint);color:var(--accent);font-size:12px}
+.hb-truth-reset .hb-icon{width:16px;height:16px}
+.hb-truth-welcome{text-align:center;padding:12px 0 5px}.hb-truth-welcome>.hb-art{width:112px;height:112px;margin:5px auto 15px}
+.hb-truth-welcome h3{font-size:19px;line-height:1.5;margin:5px 0 12px}
+.hb-truth-intro{margin:0 0 18px}.hb-challenge-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hb-challenge{display:grid;justify-items:center;align-content:center;gap:7px;min-height:126px;width:100%;min-width:0;padding:16px 9px;border:1px solid transparent;border-radius:22px;color:var(--accent);background:var(--tint);text-align:center}
+.hb-challenge.dare-mode{background:var(--mint);color:#348566}.dark .hb-challenge.dare-mode{color:#8bd5b4}
+.hb-challenge[aria-pressed=true]{border-color:currentColor;box-shadow:inset 0 0 0 1px currentColor}
+.hb-challenge strong,.hb-challenge small{display:block;line-height:1.4}.hb-challenge strong{font-size:17px}.hb-challenge small{font-size:11px;opacity:.85}
+.hb-challenge-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:var(--card)}.hb-challenge-icon .hb-icon{width:23px;height:23px}
+.hb-question-card{min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:25px 20px;margin-top:20px;border:1px solid var(--line);border-radius:24px;background:var(--bg);text-align:center}
+.hb-question-tag{font-size:11px;font-weight:650;color:var(--accent);background:var(--tint);border-radius:8px;padding:5px 10px}
+.hb-question-card strong{font-size:22px;line-height:1.65;overflow-wrap:anywhere;font-weight:750}
+.hb-truth-count{font-size:11px;text-align:center;color:var(--muted);margin:14px 0 0}
+.hb-truth-reset-note{font-size:11px;line-height:1.8;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;margin:22px 0 0}
+.hb-truth-exhausted{padding:12px;border-radius:12px;font-size:12px;line-height:1.7;background:var(--tint);color:var(--accent)}
+@media(max-width:360px){.gamebox .hb-truth-heading h2{font-size:19px}.hb-truth-game{padding:17px 14px}.hb-challenge-options{gap:10px}.hb-question-card{padding:20px 15px}.hb-question-card strong{font-size:20px}}
+@media(max-height:700px){.hb-truth-welcome{padding-top:3px}.hb-truth-welcome>.hb-art{width:80px;height:80px;margin-bottom:9px}.hb-truth-welcome h3{font-size:18px}.hb-truth-welcome .hint{font-size:12px}.hb-truth-reset-note{margin-top:16px;padding-top:12px}.hb-question-card{min-height:160px}}

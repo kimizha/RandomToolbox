@@ -29,10 +29,16 @@ def main():
     if info['version_name']!=re.search(r"versionName '([^']+)'",source)[1]:raise SystemExit('APK versionName differs from source')
     info.update(source_commit=os.environ['GITHUB_SHA'],source_branch=os.environ['GITHUB_REF_NAME'],matches_configured_certificate=True)
     previous_id=os.environ.get('RT_PREVIOUS_APK_ARTIFACT_ID','')
-    previous={'comparison':'unavailable','artifact_id':previous_id}
-    if previous_id:
+    previous_tag=os.environ.get('RT_PREVIOUS_APK_RELEASE_TAG','')
+    previous={'comparison':'unavailable'};old=None
+    if previous_tag:
+        folder=Path(os.environ['RUNNER_TEMP'])/'previous-release';folder.mkdir(exist_ok=True)
+        result=subprocess.run(['gh','release','download',previous_tag,'--repo',os.environ['GITHUB_REPOSITORY'],'--pattern','*.apk','--dir',str(folder)],capture_output=True)
+        files=list(folder.glob('*.apk'))
+        if result.returncode==0 and len(files)==1 and files[0].stat().st_size<128*1024*1024:
+            old=files[0];previous['release_tag']=previous_tag
+    if old is None and previous_id:
         archive=Path(os.environ['RUNNER_TEMP'])/'previous-apk.zip'
-        # Stream ZIP bytes to disk; do not print binary data or authentication values.
         with archive.open('wb') as out:
             fetched=subprocess.run(['gh','api',f"repos/{os.environ['GITHUB_REPOSITORY']}/actions/artifacts/{previous_id}/zip"],stdout=out,stderr=subprocess.PIPE)
         if fetched.returncode==0:
@@ -40,11 +46,13 @@ def main():
                 items=[x for x in z.infolist() if x.filename.endswith('.apk') and x.file_size<128*1024*1024]
                 if len(items)!=1:raise SystemExit('Prior APK archive does not contain exactly one bounded APK')
                 old=Path(os.environ['RUNNER_TEMP'])/'previous-app.apk';old.write_bytes(z.read(items[0]))
-            previous.update(apk_info(old,tools));previous['comparison']='verified'
-            if info['package_name']!=previous['package_name']:raise SystemExit('New and prior APK package names differ')
-            if info['version_code']<=previous['version_code']:raise SystemExit('New APK versionCode must exceed previously delivered APK')
-            previous['same_certificate']=info['certificate_sha256']==previous['certificate_sha256']
-            previous['can_cover_install']=previous['same_certificate']
+            previous['artifact_id']=previous_id
+    if old is not None:
+        previous.update(apk_info(old,tools));previous['comparison']='verified'
+        if info['package_name']!=previous['package_name']:raise SystemExit('New and prior APK package names differ')
+        if info['version_code']<=previous['version_code']:raise SystemExit('New APK versionCode must exceed previously delivered APK')
+        previous['same_certificate']=info['certificate_sha256']==previous['certificate_sha256']
+        previous['can_cover_install']=previous['same_certificate']
     info['previous_apk']=previous
     output=Path('release-output');output.mkdir(exist_ok=True)
     name=f"Happybox-v{info['version_name']}-code{info['version_code']}.apk"

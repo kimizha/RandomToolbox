@@ -23,7 +23,9 @@ def main():
     else:
         migration='未能取得此前 APK 的证书，不能确认能否覆盖安装。请保留旧版，先核对证书并确认账号云端同步和数据备份，不要为安装而直接卸载。'
     fingerprint=':'.join(report['certificate_sha256'][i:i+2] for i in range(0,64,2)).upper()
-    notes=f"""开心盒 2.7 · UI 分支开发测试版，固定签名 APK。\n\n转盘配置按钮移至标题右侧，示例明确分行；修复登录恢复、离线缓存、账号隔离与同步状态。\n\n- 包名：`{report['package_name']}`\n- versionName：`{report['version_name']}`\n- versionCode：`{report['version_code']}`\n- 源提交：`{report['source_commit']}`（`ui/android-happybox-redesign`）\n- 签名证书 SHA-256：`{fingerprint}`\n- APK SHA-256：`{report['apk_sha256']}`\n\n{migration}\n\n137 项浏览器检查与 21 组模拟同步场景通过；真实账号跨设备恢复、手机覆盖安装尚未验收。保持同一固定签名才能支持后续版本覆盖升级。\n\n构建记录：https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\n"""
+    summary_path=Path('docs/UI-RELEASE-NOTES.md')
+    summary=summary_path.read_text().strip() if summary_path.exists() else 'UI 与账号配置同步优化。'
+    notes=f"""开心盒 {report['version_name']} · UI 分支开发测试版，固定签名 APK。\n\n{summary}\n\n- 包名：`{report['package_name']}`\n- versionName：`{report['version_name']}`\n- versionCode：`{report['version_code']}`\n- 源提交：`{report['source_commit']}`（`ui/android-happybox-redesign`）\n- 签名证书 SHA-256：`{fingerprint}`\n- APK SHA-256：`{report['apk_sha256']}`\n\n{migration}\n\nJavaScript / APK 构建、签名验证、账号同步回归和发布保护检查通过；真实账号跨设备恢复、手机覆盖安装尚未验收。保持同一固定签名才能支持后续版本覆盖升级。\n\n构建记录：https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\n"""
     body=Path(os.environ['RUNNER_TEMP'])/'happybox-release-notes.md';body.write_text(notes)
     gh(['release','create',tag,str(output/report['apk_filename']),str(output/'verification.json'),str(output/'SHA256SUMS'),'--target',report['source_commit'],'--title',f"开心盒 v{report['version_name']} · UI 测试版 ({report['version_code']})",'--notes-file',str(body),'--prerelease','--latest=false'])
     release=json.loads(gh(['api',f"repos/{os.environ['GITHUB_REPOSITORY']}/releases/tags/{tag}"]))

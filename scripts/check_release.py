@@ -13,7 +13,7 @@ class ReleaseChecks(unittest.TestCase):
   p=Path('app/build/outputs/apk/debug');p.mkdir(parents=True);(p/'app-debug.apk').write_bytes(b'APK test fixture')
   Path('app/build.gradle').write_text("versionName '2.7'")
   self.cert=b'public test certificate';self.fingerprint=hashlib.sha256(self.cert).hexdigest()
-  self.env={'ANDROID_HOME':'/test-sdk','ANDROID_KEYSTORE_FILE':'/not-read.p12','ANDROID_KEY_ALIAS':'test','ANDROID_KEYSTORE_PASSWORD':'SIGNING_SECRET_NEVER_PRINT','ANDROID_VERSION_CODE':'100321','GITHUB_SHA':'a'*40,'GITHUB_REF_NAME':'ui/android-happybox-redesign','GITHUB_REF':'refs/heads/ui/android-happybox-redesign','GITHUB_REPOSITORY':'test/repo','GITHUB_RUN_ID':'123','RUNNER_TEMP':str(self.root),'RT_STABLE_SIGNING':'true','RT_PREVIOUS_APK_ARTIFACT_ID':''}
+  self.env={'ANDROID_HOME':'/test-sdk','ANDROID_KEYSTORE_FILE':'/not-read.p12','ANDROID_KEY_ALIAS':'test','ANDROID_KEYSTORE_PASSWORD':'SIGNING_SECRET_NEVER_PRINT','ANDROID_VERSION_CODE':'100321','GITHUB_SHA':'a'*40,'GITHUB_REF_NAME':'ui/android-happybox-redesign','GITHUB_REF':'refs/heads/ui/android-happybox-redesign','GITHUB_REPOSITORY':'test/repo','GITHUB_RUN_ID':'123','RUNNER_TEMP':str(self.root),'RT_STABLE_SIGNING':'true','RT_PREVIOUS_APK_ARTIFACT_ID':'','RT_PREVIOUS_APK_RELEASE_TAG':''}
   self.pkg='com.randomtoolbox.app';self.code='100321';self.actual_cert=self.fingerprint
  def fake_run(self,args,**kwargs):
   command=Path(args[0]).name
