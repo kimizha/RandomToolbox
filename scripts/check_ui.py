@@ -122,6 +122,17 @@ with sync_playwright() as pw:
 
  page.evaluate("go('settings');rtShowLogin()")
  check('Login visible',page.locator('#rtIdentifier').is_visible());page.screenshot(path=str(OUT/'login.png'),full_page=False)
+ # Both email and username must be authenticated by the provider; no local bypass or role assignment.
+ page.evaluate("window.rtLoginRequest=null;rtAuth={signInWithPassword:async p=>{window.rtLoginRequest=p;return {error:{message:'测试拒绝'}}}}")
+ page.locator('#rtIdentifier').fill('1042');page.locator('#rtPassword').fill('provider-test-only')
+ page.locator('#rtAuthRoot').get_by_role('button',name='邮箱密码登录',exact=True).click();page.wait_for_function('!rtBusy')
+ check('Numeric identifier goes to username auth',page.evaluate("window.rtLoginRequest.username==='1042'&&!window.rtLoginRequest.email"))
+ check('Provider rejection never creates a local session',page.evaluate('!window.rtLoggedIn') and page.locator('#rtMsg').inner_text().startswith('登录失败'))
+ page.locator('#rtIdentifier').fill('preview@example.com');page.locator('#rtPassword').fill('different-provider-test')
+ page.locator('#rtAuthRoot').get_by_role('button',name='邮箱密码登录',exact=True).click();page.wait_for_function('!rtBusy')
+ check('Existing email password route preserved',page.evaluate("window.rtLoginRequest.email==='preview@example.com'&&!window.rtLoginRequest.username"))
+ check('Login password is forwarded, not a fixed app credential',page.evaluate("window.rtLoginRequest.password==='different-provider-test'"))
+ check('Login autofill uses normal account credentials',page.locator('#rtIdentifier').get_attribute('autocomplete')=='username' and page.locator('#rtPassword').get_attribute('autocomplete')=='current-password')
  for route in ['choose','register','otpLogin','verify','forgot','security']:
   page.evaluate(f"rtRender('{route}')");check('Account screen '+route,page.locator('.rt-head h1').is_visible())
  # This fake UI account has no CloudBase session; keep background sync out of local form tests.
