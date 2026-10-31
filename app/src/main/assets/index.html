@@ -150,7 +150,7 @@ else if(g.stage==='deal'){if(g.i>=g.n){html+='<div class="secret"><strong>发牌
 else if(g.stage==='end'){html+=`<div class="secret"><strong>${escapeHtml(g.message)}</strong></div><div class="game-note">${g.roles.map((r,i)=>`${i+1}号：${t==='spy'?(g.spy.includes(i)?'卧底 · ':'平民 · '):''}${escapeHtml(r)}`).join('<br>')}</div><button class="primary" onclick="openGame('${t}')">再来一局</button>`;html=html.replace(`openGame('${t}')`,`openGame('${g.type}')`)}
 else if(t==='truth'){
  const truths=truthRemaining('truth').length,dares=truthRemaining('dare').length;
- html+=`<p class="hint hb-truth-intro">选一种挑战，让这一刻更有趣。不想回答可以换题，也不必透露姓名或隐私。</p><div class="hb-challenge-options">
+ html+=`${window.HBParty?HBParty.truthIntro():''}<div class="hb-challenge-options">
  <button class="hb-challenge truth-mode" onclick="gamePrompt('truth')" aria-pressed="${g.mode==='truth'&&!!g.prompt}" ${truths?'':'disabled'}><span class="hb-challenge-icon">${hbIcon('heart')}</span><strong>真心话</strong><small>分享一点心里话</small></button>
  <button class="hb-challenge dare-mode" onclick="gamePrompt('dare')" aria-pressed="${g.mode==='dare'&&!!g.prompt}" ${dares?'':'disabled'}><span class="hb-challenge-icon">${hbIcon('bolt')}</span><strong>大冒险</strong><small>接住一个小挑战</small></button></div>
  <div class="hb-question-card" role="status" aria-live="polite"><span class="hb-question-tag">${g.prompt?(g.mode==='truth'?'真心话':'大冒险'):'准备好了吗？'}</span><strong>${escapeHtml(g.prompt||'点击上方按钮，抽取你的第一个挑战')}</strong></div>
