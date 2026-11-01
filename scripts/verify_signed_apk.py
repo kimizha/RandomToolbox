@@ -14,7 +14,7 @@ def apk_info(apk,tools):
     badging=run([str(tools/'aapt'),'dump','badging',str(apk)],text=True)
     package=re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'",badging,re.M)
     if not package:raise SystemExit('APK package/version metadata unavailable')
-    return {'package_name':package[1],'version_code':int(package[2]),'version_name':package[3],'certificate_sha256':certs[0].lower(),'apk_sha256':hashlib.sha256(apk.read_bytes()).hexdigest()}
+    return {'package_name':package[1],'version_code':int(package[2]),'version_name':package[3],'debuggable':bool(re.search(r'^application-debuggable(?:\s|$)',badging,re.M)),'certificate_sha256':certs[0].lower(),'apk_sha256':hashlib.sha256(apk.read_bytes()).hexdigest()}
 
 def main():
     sdk=Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
@@ -23,6 +23,9 @@ def main():
     info=apk_info(apk,tools)
     with zipfile.ZipFile(apk) as archive:
         info['contains_security_probe']=b'HAPPYBOX_SECURITY_PROBE_TEST_ONLY' in archive.read('assets/index.html')
+    expected_probe=os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1'
+    if info['contains_security_probe']!=expected_probe:raise SystemExit('APK probe inclusion differs from explicit build mode')
+    if expected_probe and (not info['debuggable'] or info['version_code']<=100156):raise SystemExit('Probe requires a Debug APK newer than 100156')
     expected_cert=hashlib.sha256(run(['keytool','-exportcert','-keystore',os.environ['ANDROID_KEYSTORE_FILE'],'-alias',os.environ['ANDROID_KEY_ALIAS'],'-storepass:env','ANDROID_KEYSTORE_PASSWORD'])).hexdigest()
     if info['certificate_sha256']!=expected_cert:raise SystemExit('APK certificate differs from configured stable signing key')
     if info['package_name']!='com.randomtoolbox.app':raise SystemExit('Unexpected Android package name')
