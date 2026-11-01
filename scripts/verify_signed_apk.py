@@ -27,7 +27,7 @@ def main():
         info['contains_security_probe']=b'HAPPYBOX_SECURITY_PROBE_TEST_ONLY' in archive.read('assets/index.html')
     expected_probe=os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1'
     if info['contains_security_probe']!=expected_probe:raise SystemExit('APK probe inclusion differs from explicit build mode')
-    if expected_probe and (not info['debuggable'] or info['version_code']<=100157):raise SystemExit('Probe requires a Debug APK newer than 100157')
+    if expected_probe and (not info['debuggable'] or info['version_code']<=100158):raise SystemExit('Probe requires a Debug APK newer than 100158')
     expected_cert=hashlib.sha256(run(['keytool','-exportcert','-keystore',os.environ['ANDROID_KEYSTORE_FILE'],'-alias',os.environ['ANDROID_KEY_ALIAS'],'-storepass:env','ANDROID_KEYSTORE_PASSWORD'])).hexdigest()
     if expected_probe and info['certificate_sha256']!=PROBE_CERT_SHA256:raise SystemExit('Probe certificate differs from the previously delivered Debug APK; stop without fallback')
     if info['certificate_sha256']!=expected_cert:raise SystemExit('APK certificate differs from configured stable signing key')

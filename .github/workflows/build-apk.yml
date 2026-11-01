@@ -99,6 +99,8 @@ jobs:
         run: |
           node --check scripts/dev-security-probe.js
           node scripts/check_security_probe.cjs
+          node scripts/check_security_probe.cjs cloudfunctions/happyboxSecurityProbeComparison
+          node scripts/check_probe_comparison.cjs
           node --check scripts/sync.js
           node --check scripts/profile.js
           node --check app/src/main/assets/ui/happybox.js

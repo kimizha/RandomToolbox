@@ -2,9 +2,9 @@
 import hashlib,re,zipfile
 from pathlib import Path
 def create_manifest(root):
- root=Path(root);source=root/'cloudfunctions/happyboxSecurityProbe'
- archive=root/'deployment/security-probe/HappyboxSecurityProbe-readonly-tx-null-v2.zip'
- files={name:hashlib.sha256((source/name).read_bytes()).hexdigest() for name in ('index.js','probe.cjs','transaction-read.cjs','package.json','package-lock.json')}
+ root=Path(root);source=root/'cloudfunctions/happyboxSecurityProbeComparison'
+ archive=root/'deployment/security-probe/HappyboxSecurityProbe-readonly-comparison-v3.zip'
+ files={name:hashlib.sha256((source/name).read_bytes()).hexdigest() for name in ('index.js','probe.cjs','transaction-read.cjs','package.json','package-lock.json','read-control.cjs')}
  with zipfile.ZipFile(archive) as z:
   for name,digest in files.items():
    if z.namelist().count(name)!=1 or hashlib.sha256(z.read(name)).hexdigest()!=digest:raise ValueError('Probe package/source mismatch: '+name)
