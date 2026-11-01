@@ -6,7 +6,17 @@ function rtProfileGet(){const k=rtProfileKey();if(!k)return {};try{const p=JSON.
 function rtProfileSave(p){const k=rtProfileKey();if(!k)return false;try{localStorage.setItem(k,JSON.stringify(p));if(typeof rtSyncLocalChanged==='function')rtSyncLocalChanged(k);return true}catch(e){return false}}
 function rtProfileDefaultName(p=rtProfileGet()){return String(p.defaultName||rtUser?.phone||rtUser?.phoneNumber||rtUser?.email||rtUser?.emailAddress||rtUser?.username||rtLoginContact||'开心盒用户').replace(/^\+86\s*/, '')}
 function rtProfileName(p=rtProfileGet()){return p.name||rtProfileDefaultName(p)}
-function rtApplyAvatar(el,p){if(!el)return;const i=Math.max(0,RT_AVATARS.indexOf(p.avatar||'shiba'));const photo=typeof p.photo==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(p.photo)?p.photo:null;el.style.backgroundImage='url("'+(photo||RT_AVATAR_SPRITE)+'")';el.style.backgroundSize=photo?'cover':'300% 300%';el.style.backgroundPosition=photo?'center':(i%3*50)+'% '+(Math.floor(i/3)*50)+'%'}
+function rtApplyAvatar(el,p){
+ if(!el)return;
+ const i=Math.max(0,RT_AVATARS.indexOf(p.avatar||'shiba'));
+ const photo=typeof p.photo==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(p.photo)?p.photo:null;
+ // AI-restored individual portraits prevent neighboring atlas cells and white wedges from bleeding in.
+ // The unchanged original sprite remains an offline fallback; saved avatar IDs and uploaded photos are unchanged.
+ el.style.backgroundImage=photo?'url("'+photo+'")':'url("ui/avatars-repaired/'+RT_AVATARS[i]+'.png"), url("'+RT_AVATAR_SPRITE+'")';
+ el.style.backgroundSize=photo?'cover':'cover, 300% 300%';
+ el.style.backgroundPosition=photo?'center':'center, '+(i%3*50)+'% '+(Math.floor(i/3)*50)+'%';
+}
+
 function rtAccountRefresh(){const guest=!window.rtLoggedIn,p=guest?{}:rtProfileGet();const name=rtElem('rtAccountName'),status=rtElem('rtUserStatus'),badge=rtElem('rtAccountBadge');if(name)name.textContent=guest?'欢迎来到开心盒':rtProfileName(p);if(status)status.textContent=!rtSessionKnown?'正在检查登录状态…':guest?'登录后，开启更多趣味玩法':'查看和编辑个人资料';if(badge)badge.textContent=guest?'游客':'已登录';rtApplyAvatar(rtElem('rtAccountAvatar'),p)}
 function rtShowProfile(){
  if(!window.rtLoggedIn)return rtShowLogin();

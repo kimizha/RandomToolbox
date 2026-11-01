@@ -14,3 +14,6 @@
 .rt-avatar-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:4px}
 .rt-avatar-choice{width:100%;aspect-ratio:1;border:3px solid transparent;border-radius:50%;padding:0;background-color:transparent;background-repeat:no-repeat;transition:transform .15s,box-shadow .15s}.rt-avatar-choice.selected{border-color:#7463ee;box-shadow:0 0 0 3px #7463ee25}.rt-avatar-choice:active{transform:scale(.95)}
 .rt-upload,.rt-profile-save{box-sizing:border-box;display:block;width:100%;margin-top:22px;border:0;border-radius:16px;padding:16px;background:var(--card,#fff);color:#7463ee;font-weight:650;font-size:15px;cursor:pointer}.rt-profile-save{background:#7463ee;color:#fff}.rt-profile-error{color:#ba3f58;font-size:13px;line-height:1.6;text-align:left;min-height:20px}
+
+/* Keep image paint within the circular content area, clear of the selection ring. */
+.rt-account-avatar,.rt-profile-main,.rt-avatar-choice{background-clip:padding-box;overflow:hidden}

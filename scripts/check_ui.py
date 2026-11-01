@@ -143,11 +143,13 @@ with sync_playwright() as pw:
  # This fake UI account has no CloudBase session; keep background sync out of local form tests.
  page.evaluate("rtSyncAccountChanged=()=>{};rtSyncTick=async()=>{};rtClose();window.rtLoggedIn=true;rtUser={uid:'ui-test-only',email:'preview@example.com'};rtSessionKnown=true;rtStatus();rtShowProfile()")
  check('Nine original animal avatars',page.locator('.rt-avatar-choice').count()==9)
+ check('All nine AI-restored portrait assets decode locally',page.evaluate("async()=>{await Promise.all(RT_AVATARS.map(async id=>{const image=new Image();image.src='ui/avatars-repaired/'+id+'.png';await image.decode();if(image.naturalWidth<256||image.naturalWidth!==image.naturalHeight)throw Error('Invalid portrait '+id)}));return true}"))
  check('Bottom profile action buttons removed',page.locator('.rt-upload,.rt-profile-save').count()==0)
  check('Nickname save beside input',page.locator('.rt-profile-name-row button').inner_text()=='保存')
  page.locator('#rtProfileName').fill('尚未保存的昵称')
  page.get_by_role('button',name='小狐狸',exact=True).click()
  check('Avatar selection saves immediately',page.evaluate("rtProfileGet().avatar==='fox'"))
+ check('Profile preview uses repaired image with original fallback',page.locator('#rtProfilePreview').evaluate("el=>el.style.backgroundImage.includes('avatars-repaired/fox.png')&&el.style.backgroundImage.includes('data:image/webp')"))
  check('Avatar selection keeps pending nickname',page.locator('#rtProfileName').input_value()=='尚未保存的昵称')
  check('Avatar selection does not save pending nickname',page.evaluate("rtProfileGet().name!=='尚未保存的昵称'"))
  page.locator('.rt-name-save').click()
