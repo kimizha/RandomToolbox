@@ -11,12 +11,12 @@ async function scenario(name, change, expected, reads = 0) {
       assert.equal(name, 'account_backups');
       return {doc: uid => {
         assert.equal(uid, 'own-user');
-        return {get: async () => {actualReads++; if (source.failRead) throw Error('private server diagnostic'); return {data: {photo: 'private-photo'}};}};
+        return {get: async () => {actualReads++; if (source.failRead) throw Error('private server diagnostic'); return source.response || {data: {photo: 'private-photo'}};}};
       }};
     }})})
   };
   change(source, app);
-  const probe = createProbe({app, cloudContext: context => {
+  const probe = createProbe({app, allowedUids: source.allowedUids === undefined ? ['own-user'] : source.allowedUids, cloudContext: context => {
     assert.equal(context, 'runtime-context');
     return {TCB_ENV: source.env, TCB_UUID: source.runtimeUid};
   }});
@@ -40,5 +40,13 @@ async function scenario(name, change, expected, reads = 0) {
   await scenario('Provider identity failure fails closed', (_, app) => {app.auth = () => {throw Error('private server diagnostic');};}, 'TRUSTED_IDENTITY_UNAVAILABLE');
   await scenario('No transaction method reported accurately', (_, app) => {app.database = () => ({});}, 'TRANSACTION_API_UNAVAILABLE');
   await scenario('Failed read not presented as success', s => {s.failRead = true;}, 'TRANSACTION_READ_NOT_VERIFIED', 1);
+  await scenario('Empty server allowlist denies database access', s => {s.allowedUids = [];}, 'PROBE_NOT_AUTHORIZED');
+  await scenario('Other tester UID denies database access', s => {s.allowedUids = ['other'];}, 'PROBE_NOT_AUTHORIZED');
+  await scenario('Malformed server allowlist fails closed', s => {s.allowedUids = 'own-user';}, 'PROBE_NOT_AUTHORIZED');
+  await scenario('Oversized server allowlist fails closed', s => {s.allowedUids = Array(11).fill('own-user');}, 'PROBE_NOT_AUTHORIZED');
+  await scenario('Returned read error is not success', s => {s.response = {error: {message: 'private server diagnostic'}};}, 'TRANSACTION_READ_NOT_VERIFIED', 1);
+  await scenario('Returned error code is not success', s => {s.response = {code: 'DENIED', data: {}};}, 'TRANSACTION_READ_NOT_VERIFIED', 1);
+  await scenario('Missing response data is not success', s => {s.response = {};}, 'TRANSACTION_READ_NOT_VERIFIED', 1);
+  await scenario('Empty result can verify a read, not backup existence', s => {s.response = {data: []};}, 'READ_PREFLIGHT_COMPLETE', 1);
   console.log(`${count} offline security preflight scenarios passed; no CloudBase connection.`);
 })().catch(e => {console.error(e);process.exitCode = 1;});

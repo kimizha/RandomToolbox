@@ -4,6 +4,12 @@
   "private": true,
   "main": "index.js",
   "dependencies": {
-    "@cloudbase/node-sdk": "3.18.7"
+    "@cloudbase/node-sdk": "4.2.1"
+  },
+  "overrides": {
+    "axios": "1.21.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

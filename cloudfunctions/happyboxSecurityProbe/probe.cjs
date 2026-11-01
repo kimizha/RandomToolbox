@@ -2,7 +2,9 @@
 
 // Preflight only. No application login admission, token decoding or database writes.
 const ENV = 'randomtoolbox-d5gg1p6rg1d2287eb';
-function createProbe({app, cloudContext}) {
+function createProbe({app, cloudContext, allowedUids = []}) {
+  const allowed = new Set(Array.isArray(allowedUids) && allowedUids.length <= 10 &&
+    allowedUids.every(uid => typeof uid === 'string' && uid.length > 0 && uid.length <= 256) ? allowedUids : []);
   return async function probe(_event, context) {
     let identity, runtime, user;
     try {
@@ -19,6 +21,7 @@ function createProbe({app, cloudContext}) {
         user.isAnonymous !== false) {
       return {ok: false, code: 'REAL_USER_REQUIRED'};
     }
+    if (!allowed.has(uid)) return {ok: false, code: 'PROBE_NOT_AUTHORIZED'};
     const result = {
       ok: true,
       identityVerified: true,
@@ -35,7 +38,11 @@ function createProbe({app, cloudContext}) {
       if (typeof db.runTransaction !== 'function') return {...result, code: 'TRANSACTION_API_UNAVAILABLE'};
       await db.runTransaction(async tx => {
         // Read own existing document only. The contents never leave the function.
-        await tx.collection('account_backups').doc(uid).get();
+        const response = await tx.collection('account_backups').doc(uid).get();
+        if (!response || response.error || (response.code !== undefined && response.code !== 0) ||
+            !Object.hasOwn(response, 'data') || response.data === null || typeof response.data !== 'object') {
+          throw new Error('Read response not verified');
+        }
       });
       return {...result, transactionReadVerified: true, code: 'READ_PREFLIGHT_COMPLETE'};
     } catch (_) {
