@@ -77,6 +77,15 @@
 - 210 项既有界面回归、22 个账号同步模拟场景、7 项发布逻辑检查通过；没有访问真实账号数据。
 - **还需真机验收**：原生界面在不同手机上的触摸/返回/横竖屏、真实系统浏览器、真实蓝奏云分享页、覆盖安装以及实际网络切换。逻辑状态测试不等于这些真机操作已经完成。
 
+## 本次构建结果（2026-11-01）
+
+- 代码提交：`1adb31a262a357da89c2a2bdb67be15bdedcb57b`，UI 开发分支。
+- [GitHub Actions 验证记录](https://github.com/kimizha/RandomToolbox/actions/runs/41275808451)：成功；11 项 Robolectric 原生测试执行成功，55 项策略测试及既有 CI 检查通过。
+- 仅 CI 调试构建：versionName `2.9`、实际 versionCode `100156`、包名 `com.randomtoolbox.app`。
+- 正式固定证书 SHA-256：`714524c73030e3d5010c849f52012af5adc7f36ecc2b0013ec6bff4c8324fa4b`。与工作流对比的旧包（100142）一致；未更换证书，未要求卸载。
+- APK SHA-256：`44cc7f6bb0473cf8c7ccde3ffa9bc2a459eaa60ed7593a3f670815e4881df303`。
+- 两个 Release 发布步骤均跳过；没有发布正式包，没有上传蓝奏云。远程 JSON 已核对仍为空地址、关闭强制更新。
+
 ## 发布边界
 
 旧 APK 不会仅因 JSON 文件改变而获得这套新机制，必须先安装包含此代码的新客户端。本次只做代码、测试和 CI 调试构建；正式 APK/Release 仍等待你确认，未上传蓝奏云。固定签名、applicationId 和 CI 递增 code 配置均沿用原设置。
