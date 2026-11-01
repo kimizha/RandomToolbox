@@ -57,3 +57,11 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.14.1'
 }
+
+// Probe code is injected only by explicit test opt-in. Never package it in release variants.
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') } &&
+        file('src/main/assets/index.html').getText('UTF-8').contains('HAPPYBOX_SECURITY_PROBE_TEST_ONLY')) {
+        throw new GradleException('Security probe test assets cannot be packaged in release builds; use a clean source checkout')
+    }
+}

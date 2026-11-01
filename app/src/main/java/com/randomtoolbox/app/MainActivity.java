@@ -370,6 +370,9 @@ public class MainActivity extends Activity implements SensorEventListener {
         return b.toString();
     }
     public class NativeBridge {
+        @JavascriptInterface public boolean isSecurityProbeTestBuild() {
+            return (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        }
         @JavascriptInterface public void vibrate(int milliseconds) {
             int ms = Math.max(1, Math.min(500, milliseconds));
             nativeVibrate(new long[]{0, ms});

@@ -123,6 +123,8 @@ js = js.replace('/* RT_AUTH_NATIVE_V3 */', "/* RT_AUTH_NATIVE_V3 */\nconst RT_AV
 
 replace('</script></body></html>', '</script><script>' + js + '\n' + Path('scripts/profile.js').read_text(encoding='utf-8') + '\n' + Path('scripts/sync.js').read_text(encoding='utf-8') + '\nrtStatus();setTimeout(rtStartAuth,250);' + '</script></body></html>')
 replace('</body></html>', account_fallback + '</body></html>')
+if os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST') == '1':
+    replace('</body></html>', '<script>' + Path('scripts/dev-security-probe.js').read_text(encoding='utf-8') + '</script></body></html>')
 p.write_text(s, encoding='utf-8')
 print('Injected RT_AUTH_NATIVE_V3 account UI')
 

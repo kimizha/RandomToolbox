@@ -21,6 +21,8 @@ def main():
     tools=sdk/'build-tools/35.0.0'
     apk=Path('app/build/outputs/apk/debug/app-debug.apk')
     info=apk_info(apk,tools)
+    with zipfile.ZipFile(apk) as archive:
+        info['contains_security_probe']=b'HAPPYBOX_SECURITY_PROBE_TEST_ONLY' in archive.read('assets/index.html')
     expected_cert=hashlib.sha256(run(['keytool','-exportcert','-keystore',os.environ['ANDROID_KEYSTORE_FILE'],'-alias',os.environ['ANDROID_KEY_ALIAS'],'-storepass:env','ANDROID_KEYSTORE_PASSWORD'])).hexdigest()
     if info['certificate_sha256']!=expected_cert:raise SystemExit('APK certificate differs from configured stable signing key')
     if info['package_name']!='com.randomtoolbox.app':raise SystemExit('Unexpected Android package name')

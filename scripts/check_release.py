@@ -1,5 +1,5 @@
 """Offline tests for APK identity checks and UI-only publication; no GitHub writes."""
-import contextlib,hashlib,importlib.util,io,json,os,tempfile,unittest
+import contextlib,hashlib,importlib.util,io,json,os,tempfile,unittest,zipfile
 from pathlib import Path
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
@@ -10,7 +10,8 @@ class ReleaseChecks(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.old=Path.cwd();os.chdir(self.root)
   self.addCleanup(os.chdir,self.old);self.addCleanup(self.tmp.cleanup)
-  p=Path('app/build/outputs/apk/debug');p.mkdir(parents=True);(p/'app-debug.apk').write_bytes(b'APK test fixture')
+  p=Path('app/build/outputs/apk/debug');p.mkdir(parents=True)
+  with zipfile.ZipFile(p/'app-debug.apk','w') as z:z.writestr('assets/index.html','<html>Offline fixture</html>')
   Path('app/build.gradle').write_text("versionName '2.7'")
   self.cert=b'public test certificate';self.fingerprint=hashlib.sha256(self.cert).hexdigest()
   self.env={'ANDROID_HOME':'/test-sdk','ANDROID_KEYSTORE_FILE':'/not-read.p12','ANDROID_KEY_ALIAS':'test','ANDROID_KEYSTORE_PASSWORD':'SIGNING_SECRET_NEVER_PRINT','ANDROID_VERSION_CODE':'100321','GITHUB_SHA':'a'*40,'GITHUB_REF_NAME':'ui/android-happybox-redesign','GITHUB_REF':'refs/heads/ui/android-happybox-redesign','GITHUB_REPOSITORY':'test/repo','GITHUB_RUN_ID':'123','RUNNER_TEMP':str(self.root),'RT_STABLE_SIGNING':'true','RT_PREVIOUS_APK_ARTIFACT_ID':'','RT_PREVIOUS_APK_RELEASE_TAG':''}
@@ -38,6 +39,10 @@ class ReleaseChecks(unittest.TestCase):
   with self.assertRaises(SystemExit):self.execute()
  def test_main_cannot_publish(self):
   with patch.dict(os.environ,{**self.env,'GITHUB_REF':'refs/heads/main'}),self.assertRaises(SystemExit):publish.main()
+ def test_probe_apk_cannot_publish_even_with_forged_report_flag(self):
+  with zipfile.ZipFile('app/build/outputs/apk/debug/app-debug.apk','w') as z:z.writestr('assets/index.html','HAPPYBOX_SECURITY_PROBE_TEST_ONLY')
+  self.execute();p=Path('release-output/verification.json');report=json.loads(p.read_text());self.assertTrue(report['contains_security_probe']);report['contains_security_probe']=False;p.write_text(json.dumps(report))
+  with patch.dict(os.environ,self.env),self.assertRaises(SystemExit):publish.main()
  def test_unsigned_cannot_publish(self):
   with patch.dict(os.environ,{**self.env,'RT_STABLE_SIGNING':'false'}),self.assertRaises(SystemExit):publish.main()
  def test_verified_release_targets_exact_ui_commit_and_warns_on_mismatch(self):
