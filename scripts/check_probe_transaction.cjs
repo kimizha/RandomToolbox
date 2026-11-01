@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {inspectTransaction}=require('./probe_transaction_candidate.cjs');
+const {inspectTransaction}=require(process.argv[2] ? require('node:path').resolve(process.argv[2],'transaction-read.cjs') : './probe_transaction_candidate.cjs');
 let checks=0;
 async function test(name,options,expected){
  let read=0,committed=false;

@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
-const {createProbe, ENV} = require('../cloudfunctions/happyboxSecurityProbe/probe.cjs');
+const {createProbe, ENV, REVISION} = require(process.argv[2] ? require('node:path').resolve(process.argv[2],'probe.cjs') : '../cloudfunctions/happyboxSecurityProbe/probe.cjs');
 let count = 0;
 async function scenario(name, change, expected, reads = 0) {
   let actualReads = 0;
@@ -22,7 +22,7 @@ async function scenario(name, change, expected, reads = 0) {
   }});
   // Malicious event properties must never override platform identity or environment.
   const out = await probe({uid: 'victim', context: {TCB_UUID: 'victim'}, env: 'other', role: 'admin', explicitLogin: true}, 'runtime-context');
-  assert.equal(out.probeRevision,'readonly-tx-null-v2');
+  assert.equal(out.probeRevision,REVISION);
   assert.equal(out.code, expected);assert.equal(actualReads, reads);
   const encoded = JSON.stringify(out);assert(!encoded.includes('private-photo'));assert(!encoded.includes('private server diagnostic'));
   assert(!encoded.includes('victim'));assert.notEqual(out.freshReauthenticationVerified, true);

@@ -2,9 +2,10 @@
 import hashlib,json,sys,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-SOURCE=ROOT/'cloudfunctions/happyboxSecurityProbe'
+SOURCE=Path(sys.argv[3]).resolve() if len(sys.argv)==4 else ROOT/'cloudfunctions/happyboxSecurityProbe'
 FILES=('index.js','probe.cjs','transaction-read.cjs','package.json','package-lock.json')
-if len(sys.argv)!=3:raise SystemExit('Usage: package_security_probe.py locked-dependency-directory output.zip')
+if len(sys.argv) not in (3,4):raise SystemExit('Usage: package_security_probe.py locked-dependency-directory output.zip [source-directory]')
+if (SOURCE/'read-control.cjs').exists():FILES+=('read-control.cjs',)
 deps=Path(sys.argv[1]);out=Path(sys.argv[2])
 if (deps/'package-lock.json').read_bytes()!=(SOURCE/'package-lock.json').read_bytes():raise SystemExit('Dependency lock mismatch')
 for package,version in [('@cloudbase/node-sdk','4.2.1'),('axios','1.21.0')]:

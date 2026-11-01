@@ -1,9 +1,10 @@
 """Compare a console-downloaded function ZIP with reviewed source; never extract or execute it."""
 import hashlib,sys,zipfile
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[1]/'cloudfunctions/happyboxSecurityProbe'
+ROOT=Path(sys.argv[2]).resolve() if len(sys.argv)==3 else Path(__file__).resolve().parents[1]/'cloudfunctions/happyboxSecurityProbe'
 FILES=('index.js','probe.cjs','package.json','package-lock.json','transaction-read.cjs')
-if len(sys.argv)!=2:raise SystemExit('Usage: python3 scripts/check_probe_deployment.py console-code.zip')
+if len(sys.argv) not in (2,3):raise SystemExit('Usage: python3 scripts/check_probe_deployment.py console-code.zip [source-directory]')
+if (ROOT/'read-control.cjs').exists():FILES+=('read-control.cjs',)
 with zipfile.ZipFile(sys.argv[1]) as z:
  names=z.namelist()
  if len(names)!=len(set(names)):raise SystemExit('Duplicate ZIP paths; comparison refused')
