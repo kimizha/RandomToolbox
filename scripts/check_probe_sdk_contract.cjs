@@ -21,8 +21,8 @@ const db={runTransaction:async fn=>fn({collection:name=>{
 }})};
 (async()=>{
  const old=createProbe({app:{auth:()=>({getAuthContext:async()=>({uid:'own'}),getUserInfo:()=>({uid:'own',isAnonymous:false})}),database:()=>db},cloudContext:()=>({TCB_ENV:ENV,TCB_UUID:'own'}),allowedUids:['own']});
- const before=await old({},{});assert.equal(before.code,'TRANSACTION_READ_NOT_VERIFIED');
+ const before=await old({},{});assert.equal(before.code,'READ_PREFLIGHT_COMPLETE');assert.equal(before.documentFound,false);
  const after=await inspectTransaction(db,'own');assert.equal(after.transactionReadVerified,true);assert.equal(after.documentFound,false);
- console.log('Old probe falsely rejects SDK empty shape; draft accepts it after transaction success.');
+ console.log('Integrated probe accepts SDK empty shape after transaction success.');
  console.log('SDK source-contract and isolated reproduction passed; not real-cloud integration.');
 })().catch(e=>{console.error(e);process.exitCode=1});

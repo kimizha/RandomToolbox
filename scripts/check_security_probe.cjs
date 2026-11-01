@@ -11,7 +11,7 @@ async function scenario(name, change, expected, reads = 0) {
       assert.equal(name, 'account_backups');
       return {doc: uid => {
         assert.equal(uid, 'own-user');
-        return {get: async () => {actualReads++; if (source.failRead) throw Error('private server diagnostic'); return source.response || {data: {photo: 'private-photo'}};}};
+        const doc={field:p=>{assert.deepEqual(p,{_id:true,schema:true});return doc;},get: async () => {actualReads++; if (source.failRead) throw Error('private server diagnostic'); return source.response || {data: {_id:'own-user',schema:2,photo:'private-photo'}};}};return doc;
       }};
     }})})
   };
@@ -22,6 +22,7 @@ async function scenario(name, change, expected, reads = 0) {
   }});
   // Malicious event properties must never override platform identity or environment.
   const out = await probe({uid: 'victim', context: {TCB_UUID: 'victim'}, env: 'other', role: 'admin', explicitLogin: true}, 'runtime-context');
+  assert.equal(out.probeRevision,'readonly-tx-null-v2');
   assert.equal(out.code, expected);assert.equal(actualReads, reads);
   const encoded = JSON.stringify(out);assert(!encoded.includes('private-photo'));assert(!encoded.includes('private server diagnostic'));
   assert(!encoded.includes('victim'));assert.notEqual(out.freshReauthenticationVerified, true);
@@ -30,6 +31,8 @@ async function scenario(name, change, expected, reads = 0) {
 }
 (async () => {
   await scenario('Own trusted identity; own transaction read only', () => {}, 'READ_PREFLIGHT_COMPLETE', 1);
+  await scenario('Normal null document succeeds', s=>{s.response={data:null};},'READ_PREFLIGHT_COMPLETE',1);
+  await scenario('Mismatched document UID is rejected', s=>{s.response={data:{_id:'other'}};},'TRANSACTION_READ_NOT_VERIFIED',1);
   await scenario('Missing identity denied', s => {s.uid = '';}, 'REAL_USER_REQUIRED');
   await scenario('Anonymous identity denied', s => {s.anonymous = true;}, 'REAL_USER_REQUIRED');
   await scenario('Missing anonymous classification denied', s => {delete s.anonymous;}, 'REAL_USER_REQUIRED');

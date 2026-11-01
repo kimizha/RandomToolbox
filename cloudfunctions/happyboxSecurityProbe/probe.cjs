@@ -1,11 +1,13 @@
 'use strict';
 
 // Preflight only. No application login admission, token decoding or database writes.
+const {inspectTransaction}=require('./transaction-read.cjs');
+const REVISION='readonly-tx-null-v2';
 const ENV = 'randomtoolbox-d5gg1p6rg1d2287eb';
 function createProbe({app, cloudContext, allowedUids = []}) {
   const allowed = new Set(Array.isArray(allowedUids) && allowedUids.length <= 10 &&
     allowedUids.every(uid => typeof uid === 'string' && uid.length > 0 && uid.length <= 256) ? allowedUids : []);
-  return async function probe(_event, context) {
+  const handler = async function probe(_event, context) {
     let identity, runtime, user;
     try {
       runtime = cloudContext(context);
@@ -33,22 +35,11 @@ function createProbe({app, cloudContext, allowedUids = []}) {
       freshReauthenticationVerified: false,
       perDeviceProviderRevocationVerified: false
     };
-    try {
-      const db = app.database();
-      if (typeof db.runTransaction !== 'function') return {...result, code: 'TRANSACTION_API_UNAVAILABLE'};
-      await db.runTransaction(async tx => {
-        // Read own existing document only. The contents never leave the function.
-        const response = await tx.collection('account_backups').doc(uid).get();
-        if (!response || response.error || (response.code !== undefined && response.code !== 0) ||
-            !Object.hasOwn(response, 'data') || response.data === null || typeof response.data !== 'object') {
-          throw new Error('Read response not verified');
-        }
-      });
-      return {...result, transactionReadVerified: true, code: 'READ_PREFLIGHT_COMPLETE'};
-    } catch (_) {
-      // May be absent backup, IAM, network or unsupported transaction. No false success.
-      return {...result, code: 'TRANSACTION_READ_NOT_VERIFIED'};
-    }
+    let db;
+    try { db=app.database(); }
+    catch (_) { return {...result,code:'TRANSACTION_READ_NOT_VERIFIED',diagnosticCode:'DATABASE_INIT_FAILED',phase:'START',stageCode:'START_DATABASE_INIT_FAILED'}; }
+    return {...result,...await inspectTransaction(db,uid)};
   };
+  return async (event,context)=>({...await handler(event,context),probeRevision:REVISION});
 }
-module.exports = {createProbe, ENV};
+module.exports = {createProbe, ENV, REVISION};

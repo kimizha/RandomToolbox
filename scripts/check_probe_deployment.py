@@ -2,7 +2,7 @@
 import hashlib,sys,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]/'cloudfunctions/happyboxSecurityProbe'
-FILES=('index.js','probe.cjs','package.json','package-lock.json')
+FILES=('index.js','probe.cjs','package.json','package-lock.json','transaction-read.cjs')
 if len(sys.argv)!=2:raise SystemExit('Usage: python3 scripts/check_probe_deployment.py console-code.zip')
 with zipfile.ZipFile(sys.argv[1]) as z:
  names=z.namelist()
