@@ -1,7 +1,10 @@
 {
-  "webVersion": 12,
-  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "apkVersionCode": 11,
-  "apkUrl": "https://github.com/kimizha/RandomToolbox/releases/download/dev-v2.2-code11/RandomToolbox-v2.2-debug.apk",
-  "apkNotes": "V2.2：设置页面名称精简，版本信息同步，新增 KK 开发者署名及创意投稿方式；保留此前更新修复与工具功能。"
+  "latestVersionCode": 100155,
+  "latestVersionName": "2.9",
+  "minSupportedVersionCode": 100155,
+  "forceUpdate": false,
+  "downloadUrl": "",
+  "updateTitle": "开心盒版本更新",
+  "updateMessage": "蓝奏云下载地址尚未配置，当前不启用强制更新。",
+  "checkIntervalHours": 6
 }

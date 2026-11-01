@@ -12,6 +12,7 @@ on:
     branches: [main, dev/cloudbase-auth-integration, ui/android-happybox-redesign]
     paths-ignore:
       - 'build-status/latest-dev-run.json'
+      - 'updates/**'
 
 jobs:
   publish-run-pointer:
@@ -102,6 +103,7 @@ jobs:
           node scripts/check_game_library.cjs
           node scripts/check_sync.cjs
           python3 scripts/check_release.py
+          python3 scripts/check_apk_updates.py
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -197,7 +199,14 @@ jobs:
         run: gradle :app:compileDebugJavaWithJavac :app:mergeDebugAssets :app:processDebugResources --no-daemon
       - name: Build debug APK
         if: env.RT_STABLE_SIGNING == 'true'
-        run: gradle :app:assembleDebug --no-daemon
+        run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon
+      - name: Upload native update test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Happybox-native-update-tests
+          path: app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: ignore
       - name: Verify APK identity, fixed certificate and prior APK compatibility
         if: env.RT_STABLE_SIGNING == 'true'
         env:

@@ -40,8 +40,8 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity implements SensorEventListener {
     private static final String HOME_URL = "https://appassets.androidplatform.net/assets/index.html";
     private static final String[] MANIFEST_URLS = {
-        "https://raw.githubusercontent.com/kimizha/RandomToolbox/dev/cloudbase-auth-integration/updates/version.json",
-        "https://github.com/kimizha/RandomToolbox/raw/refs/heads/dev/cloudbase-auth-integration/updates/version.json"
+        "https://raw.githubusercontent.com/kimizha/RandomToolbox/ui/android-happybox-redesign/updates/version.json",
+        "https://github.com/kimizha/RandomToolbox/raw/refs/heads/ui/android-happybox-redesign/updates/version.json"
     };
     private static final String[] HTML_URLS = {
         "https://raw.githubusercontent.com/kimizha/RandomToolbox/main/updates/index.html",
@@ -52,6 +52,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private WebView webView;
+    private ApkUpdateManager apkUpdates;
+    private boolean updateCheckFailed;
     private static final int AVATAR_PICK_REQUEST = 481;
     private ValueCallback<Uri[]> avatarFileCallback;
     private SharedPreferences prefs;
@@ -81,7 +83,15 @@ public class MainActivity extends Activity implements SensorEventListener {
         webView.setHorizontalScrollBarEnabled(false);
         webView.setHapticFeedbackEnabled(true);
         webView.setOnLongClickListener(v -> true);
-        setContentView(webView);
+        android.widget.FrameLayout root=new android.widget.FrameLayout(this);
+        root.addView(webView,new android.widget.FrameLayout.LayoutParams(-1,-1));
+        setContentView(root);
+        try {
+            apkUpdates=new ApkUpdateManager(this,root,webView,prefs,worker,new ApkUpdateManager.Host(){
+                @Override public void status(String message,boolean failed){updateStatus(message,failed);}
+                @Override public void feedback(){nativeVibrate(new long[]{0,20});}
+            });
+        } catch(Exception e){updateStatus("暂时无法读取 APK 版本信息，可继续使用本地功能",true);}
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -95,7 +105,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
                                                        WebChromeClient.FileChooserParams params) {
-                if (!HOME_URL.equals(view.getUrl())) { callback.onReceiveValue(null); return true; }
+                if (!HOME_URL.equals(view.getUrl()) || apkUpdates!=null&&apkUpdates.isBlocking()) { callback.onReceiveValue(null); return true; }
                 if (avatarFileCallback != null) avatarFileCallback.onReceiveValue(null);
                 avatarFileCallback = callback;
                 Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -130,6 +140,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                     return new WebResourceResponse("text/plain", "UTF-8", new ByteArrayInputStream(new byte[0]));
                 }
             }
+            @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
+                return apkUpdates!=null&&apkUpdates.isBlocking();
+            }
             @Override public void onPageFinished(WebView view, String url) {
                 if (!HOME_URL.equals(url) || pagePrepared) return;
                 pagePrepared = true;
@@ -140,11 +153,11 @@ public class MainActivity extends Activity implements SensorEventListener {
                     return;
                 }
                 // Keep bundled auth UI authoritative until signed multi-file web updates are supported.
-                updateStatus("点击下方按钮检查新版本");
-                checkForUpdates(false);
+                if(apkUpdates!=null)apkUpdates.onPageReady();
             }
         });
         webView.loadUrl(HOME_URL);
+        if(apkUpdates!=null)apkUpdates.start();
     }
     private void applySystemTheme(boolean dark) {
         int color = dark ? 0xff19181f : 0xfff8f7fc;
@@ -218,7 +231,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if(name && typeof window[name]==='function')window[name]();
                   }catch(e){console.warn(e);}
                 };
-                try{var s=JSON.parse(localStorage.getItem('rt_settings')||'{}');RandomToolboxNative.setDarkMode(!!s.dark)}catch(e){}
+                try{var s=JSON.parse(localStorage.getItem('rt_settings')||'{}');RandomToolboxNative.setDarkMode(!!s.dark);RandomToolboxNative.setUpdatePreferences(JSON.stringify(s))}catch(e){}
                 var settingsView=document.getElementById('settings');
                 if(!settingsView)return;
                 if(!document.getElementById('rtShakeRow')){
@@ -240,7 +253,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 }
                 if(!document.getElementById('rtUpdatePanel')){
                   var p=document.createElement('div');p.className='panel';p.id='rtUpdatePanel';
-                  var title=document.createElement('h2');title.style.fontSize='17px';title.textContent='☁️ 版本更新';
+                  var title=document.createElement('h2');title.style.fontSize='17px';title.textContent='开心盒 APK 更新';
                   var status=document.createElement('p');status.className='hint';status.id='rtUpdateStatus';
                   var check=document.createElement('button');check.className='secondary';
                   check.style.cssText='width:100%;margin-bottom:9px';check.textContent='检查 APK 更新';
@@ -251,52 +264,23 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if(typeof rtDialog==='function')rtDialog('恢复内置版本？','当前已下载的网页更新将被移除。',function(){RandomToolboxNative.rollback()});
                     else if(confirm('恢复内置版本？'))RandomToolboxNative.rollback();
                   };
-                  p.appendChild(title);p.appendChild(status);p.appendChild(check);p.appendChild(rollback);
+                  var retry=document.createElement('button');retry.id='rtUpdateRetry';retry.className='secondary';retry.textContent='重试更新检查';retry.style.cssText='width:100%;margin-bottom:9px';retry.onclick=check.onclick;
+                  p.appendChild(title);p.appendChild(status);p.appendChild(check);p.appendChild(retry);p.appendChild(rollback);
                   settingsView.appendChild(p);
                 }
                 var status=document.getElementById('rtUpdateStatus');
                 if(status)status.textContent=__STATUS__;
+                var retry=document.getElementById('rtUpdateRetry');if(retry)retry.hidden=__FAILED__;
               }catch(e){console.error('原生功能注入失败',e);}
             })();
-            """.replace("__STATUS__", JSONObject.quote(statusText));
+            """.replace("__STATUS__", JSONObject.quote(statusText)).replace("__FAILED__", String.valueOf(!updateCheckFailed));
     }
-    private void updateStatus(String message) {
-        statusText = message;
-        js("var e=document.getElementById('rtUpdateStatus');if(e)e.textContent=" + JSONObject.quote(message) + ";");
+    private void updateStatus(String message){updateStatus(message,false);}
+    private void updateStatus(String message,boolean failed){
+        statusText=message;updateCheckFailed=failed;
+        js("var e=document.getElementById('rtUpdateStatus');if(e)e.textContent="+JSONObject.quote(message)+";var r=document.getElementById('rtUpdateRetry');if(r)r.hidden="+(!failed)+";");
     }
-    private void checkForUpdates(boolean manual) {
-        if (checking) { if (manual) updateStatus("正在检查，请稍候…"); return; }
-        checking = true;
-        if (manual) updateStatus("正在检查 APK 更新…");
-        worker.execute(() -> {
-            try {
-                long checkStarted = System.currentTimeMillis();
-                JSONObject manifest = new JSONObject(new String(downloadWithFallback(MANIFEST_URLS, 32768), StandardCharsets.UTF_8));
-                long elapsed = System.currentTimeMillis() - checkStarted;
-                int latestCode = manifest.optInt("apkVersionCode", 0);
-                String link = manifest.optString("apkUrl", "");
-                String notes = manifest.optString("apkNotes", "发现新版本");
-                int current = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
-                if (latestCode > current && link.startsWith("https://")) {
-                    main.post(() -> new android.app.AlertDialog.Builder(this)
-                        .setTitle("发现开心盒新版本")
-                        .setMessage(notes)
-                        .setNegativeButton("稍后再说", null)
-                        .setPositiveButton("前往下载", (dialog, which) -> {
-                            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link));
-                            try { startActivity(intent); } catch (Exception e) { notifyUser("无法打开下载页面"); }
-                        }).show());
-                    updateStatus("发现 APK 新版本 " + latestCode);
-                } else if (manual) {
-                    updateStatus("当前已是最新版本");
-                }
-            } catch (Exception e) {
-                if (manual) updateStatus("检查失败：" + e.getMessage());
-                String diagError = "更新地址：" + MANIFEST_URLS[0] + "\\n检查异常：" + e.toString();
-                js("var e=document.getElementById('rtUpdateDiagnostic');if(e)e.textContent=" + JSONObject.quote(diagError) + ";");
-            } finally { checking = false; }
-        });
-    }
+    private void checkForUpdates(boolean manual){if(apkUpdates!=null){if(manual)apkUpdates.manual();else apkUpdates.start();}else updateStatus("暂时无法检查 APK 更新，可继续使用本地功能",true);}
     private void legacyCheckForUpdates(boolean manual) {
         if (checking) { if (manual) updateStatus("正在检查更新，请稍候…"); return; }
         checking = true;
@@ -408,7 +392,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                 : "portrait".equals(direction) ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED));
         }
-        @JavascriptInterface public void setDarkMode(boolean dark) { main.post(() -> applySystemTheme(dark)); }
+        @JavascriptInterface public void setDarkMode(boolean dark) { main.post(() -> {applySystemTheme(dark);if(apkUpdates!=null)apkUpdates.darkMode(dark);}); }
+        @JavascriptInterface public void setUpdatePreferences(String json){main.post(()->{if(apkUpdates!=null)apkUpdates.preferences(json);});}
         @JavascriptInterface public String getMusicCover(String relativePath) {
             if (relativePath == null || !relativePath.startsWith("music/")
                 || !relativePath.toLowerCase(Locale.ROOT).endsWith(".mp3")
@@ -440,6 +425,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
         @JavascriptInterface public void checkUpdate() { main.post(() -> checkForUpdates(true)); }
         @JavascriptInterface public void rollback() {
+            if(apkUpdates!=null&&apkUpdates.isBlocking())return;
             main.post(() -> worker.execute(() -> {
                 int v = prefs.getInt("webVersion", BUNDLED_WEB_VERSION);
                 prefs.edit().putInt("blockedVersion", v).remove("webVersion").commit();
@@ -453,9 +439,11 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (sensorManager != null && accelerometer != null)
             sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
         if (webView != null) webView.onResume();
+        if(apkUpdates!=null)apkUpdates.onResume();
     }
     @Override protected void onPause() {
         if (sensorManager != null) sensorManager.unregisterListener(this);
+        if(apkUpdates!=null)apkUpdates.onPause();
         if (webView != null) {
             webView.evaluateJavascript("if(window.hbPartyPause)window.hbPartyPause();", null);
             webView.onPause();
@@ -463,7 +451,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         super.onPause();
     }
     @Override public void onSensorChanged(SensorEvent e) {
-        if (e.sensor.getType() != Sensor.TYPE_ACCELEROMETER || webView == null) return;
+        if (e.sensor.getType() != Sensor.TYPE_ACCELEROMETER || webView == null || apkUpdates!=null&&apkUpdates.isBlocking()) return;
         float a = .82f;
         if (!sensorReady) {
             gravityX = e.values[0]; gravityY = e.values[1]; gravityZ = e.values[2];
@@ -481,6 +469,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
     @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
     @Override public void onBackPressed() {
+        if(apkUpdates!=null&&apkUpdates.back())return;
         if (webView == null) { super.onBackPressed(); return; }
         webView.evaluateJavascript("(typeof appBack==='function'&&appBack())?'handled':'home'", result -> {
             if ("\"handled\"".equals(result)) { lastBack = 0; return; }
@@ -505,6 +494,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         callback.onReceiveValue(selected == null ? null : new Uri[]{selected});
     }
     @Override protected void onDestroy() {
+        if(apkUpdates!=null)apkUpdates.destroy();
         if (avatarFileCallback != null) { avatarFileCallback.onReceiveValue(null); avatarFileCallback = null; }
         worker.shutdownNow();
         if (sensorManager != null) sensorManager.unregisterListener(this);
