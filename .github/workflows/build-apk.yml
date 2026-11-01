@@ -109,6 +109,8 @@ jobs:
           node scripts/check_party_core.cjs
           node scripts/check_game_library.cjs
           node scripts/check_sync.cjs
+          python3 scripts/check_probe_signing.py
+          node scripts/check_probe_transaction.cjs
           python3 scripts/check_release.py
           python3 scripts/check_apk_updates.py
       - name: Setup Gradle

@@ -24,7 +24,7 @@ class ReleaseChecks(unittest.TestCase):
   raise AssertionError(command)
  def execute(self):
   output=io.StringIO()
-  with patch.dict(os.environ,self.env),patch.object(verify,'run',self.fake_run),contextlib.redirect_stdout(output):verify.main()
+  with patch.dict(os.environ,self.env),patch.object(verify,'run',self.fake_run),patch.object(verify,'PROBE_CERT_SHA256',getattr(self,'probe_anchor',self.fingerprint)),contextlib.redirect_stdout(output):verify.main()
   return output.getvalue()
  def test_public_metadata_only(self):
   out=self.execute();report=json.loads(Path('release-output/verification.json').read_text());self.assertEqual(report['version_code'],100321);self.assertTrue(report['matches_configured_certificate']);self.assertNotIn(self.env['ANDROID_KEYSTORE_PASSWORD'],out);self.assertNotIn('ANDROID_KEYSTORE_FILE',out)
@@ -42,6 +42,10 @@ class ReleaseChecks(unittest.TestCase):
   with self.assertRaises(SystemExit):self.execute()
  def test_normal_mode_rejects_probe_entry(self):
   with zipfile.ZipFile('app/build/outputs/apk/debug/app-debug.apk','w') as z:z.writestr('assets/index.html','HAPPYBOX_SECURITY_PROBE_TEST_ONLY')
+  with self.assertRaises(SystemExit):self.execute()
+ def test_probe_rejects_changed_previous_certificate(self):
+  with zipfile.ZipFile('app/build/outputs/apk/debug/app-debug.apk','w') as z:z.writestr('assets/index.html','HAPPYBOX_SECURITY_PROBE_TEST_ONLY')
+  self.env['HAPPYBOX_SECURITY_PROBE_TEST']='1';self.probe_anchor='0'*64
   with self.assertRaises(SystemExit):self.execute()
  def test_main_cannot_publish(self):
   with patch.dict(os.environ,{**self.env,'GITHUB_REF':'refs/heads/main'}),self.assertRaises(SystemExit):publish.main()

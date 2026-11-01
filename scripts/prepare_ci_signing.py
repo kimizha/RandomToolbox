@@ -1,5 +1,5 @@
 """Require a stable private key for distributable APKs; never generate a throwaway key."""
-import base64,os,subprocess
+import base64,hashlib,os,subprocess
 from pathlib import Path
 names=['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD']
 values={name:os.environ.get(name,'') for name in names}
@@ -18,6 +18,10 @@ else:
  path.write_bytes(raw);path.chmod(0o600)
  result=subprocess.run(['keytool','-list','-keystore',str(path),'-alias',values['ANDROID_KEY_ALIAS'],'-storepass:env','ANDROID_KEYSTORE_PASSWORD'],capture_output=True)
  if result.returncode:raise SystemExit('Cannot open Android signing key; verify the signing Secrets (credentials omitted)')
+ if os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1':
+  from verify_signed_apk import PROBE_CERT_SHA256
+  certificate=subprocess.run(['keytool','-exportcert','-keystore',str(path),'-alias',values['ANDROID_KEY_ALIAS'],'-storepass:env','ANDROID_KEYSTORE_PASSWORD'],capture_output=True)
+  if certificate.returncode or hashlib.sha256(certificate.stdout).hexdigest()!=PROBE_CERT_SHA256:raise SystemExit('Signing certificate differs from APK 100157; stopping before build')
  output+=['ANDROID_KEYSTORE_FILE='+str(path),'RT_STABLE_SIGNING=true']
  print('Stable Android signing key validated (credentials omitted).')
 with open(os.environ['GITHUB_ENV'],'a',encoding='utf-8') as f:f.write('\n'.join(output)+'\n')
