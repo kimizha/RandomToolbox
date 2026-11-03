@@ -121,7 +121,10 @@ if not avatar_sprite or len(avatar_sprite) < 1000:
     raise SystemExit('Missing or invalid original avatar sprite')
 js = js.replace('/* RT_AUTH_NATIVE_V3 */', "/* RT_AUTH_NATIVE_V3 */\nconst RT_AVATAR_SPRITE='data:image/webp;base64," + avatar_sprite + "';")
 
-replace('</script></body></html>', '</script><script>' + js + '\n' + Path('scripts/profile.js').read_text(encoding='utf-8') + '\n' + Path('scripts/sync.js').read_text(encoding='utf-8') + '\nrtStatus();setTimeout(rtStartAuth,250);' + '</script></body></html>')
+# Backup remains available to guests and while authentication/database access is unavailable.
+backup_card='<div class="panel rt-local-backup"><h3>本机数据备份</h3><p class="hint">导出昵称、头像、工具配置及本机保留的账号缓存与棋牌记录。文件包含个人资料，请妥善保管；不包含登录凭据，也不上传云端。</p><button class="primary" data-rt-backup-export onclick="rtExportLocalBackup()">导出本机 JSON 备份</button></div>'
+replace('<button id="rtLogoutButton" onclick="rtConfirmLogout()">退出登录 <span>↗</span></button></div></div>', '<button id="rtLogoutButton" onclick="rtConfirmLogout()">退出登录 <span>↗</span></button></div></div>'+backup_card)
+replace('</script></body></html>', '</script><script>' + js + '\n' + Path('scripts/profile.js').read_text(encoding='utf-8') + '\n' + Path('scripts/sync.js').read_text(encoding='utf-8') + '\n' + Path('scripts/local-backup.js').read_text(encoding='utf-8') + '\nrtStatus();setTimeout(rtStartAuth,250);' + '</script></body></html>')
 replace('</body></html>', account_fallback + '</body></html>')
 if os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST') == '1':
     from security_probe_manifest import create_manifest

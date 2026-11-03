@@ -5,17 +5,20 @@ const serial=JSON.stringify;
 const seed=(id,changes={})=>({schema:2,values:{rt_settings:serial({dark:true,vibe:false,sound:true,volume:35,speed:'slow'}),rt_wheelItems:serial(['云端火锅','云端面条']),rt_drawItems:serial(['云端甲','云端乙']),rt_favorites:serial(['wheel','coin']),['rt_profile_'+id]:serial({name:'云端昵称',avatar:'fox'}),...changes},updatedAt:1});
 const clients=[];let checks=0;
 function check(name,fn){fn();checks++;console.log('PASS '+name)}
-function server(records={}){return {records:clone(records),writes:[],readError:null,writeError:null,beforeRead:null,beforeWrite:null}}
-function client(s,uid='a',storage=new Map()){
+function server(records={}){return {records:clone(records),reads:[],writes:[],readError:null,writeError:null,beforeRead:null,beforeWrite:null}}
+function client(s,uid='a',storage=new Map(),paused=false){
  const timers=new Set(),ctx={console:{error:()=>{}},TextEncoder,Date,JSON,Set,Map,Promise,Error,Math};
  Object.assign(ctx,{window:{rtLoggedIn:!!uid},rtUser:uid?{uid}:null,rtSessionKnown:true,settings:{},wheelItems:[],drawItems:[],favorites:[],remaining:[],busy:false,activeTool:null,toolIds:['coin','wheel','draw','dice','number','rps'],rtElem:()=>null,rtProfileClose:()=>{},rtAccountRefresh:()=>{},renderFav:()=>{},renderCatalog:()=>{},renderManage:()=>{},renderWheel:()=>{},initSettings:()=>{ctx.uiRefreshes++},uiRefreshes:0,document:{querySelector:()=>null,addEventListener:()=>{},hidden:false}});
- ctx.window.addEventListener=()=>{};
- ctx.setInterval=()=>0;ctx.setTimeout=(fn,ms)=>{const h=setTimeout(()=>{timers.delete(h);fn()},ms);timers.add(h);return h};ctx.clearTimeout=h=>{clearTimeout(h);timers.delete(h)};
+ const events={};ctx.window.addEventListener=(name,fn)=>events[name]=fn;ctx.document.addEventListener=(name,fn)=>events[name]=fn;
+ ctx.setInterval=fn=>{events.interval=fn;return 0};ctx.setTimeout=(fn,ms)=>{const h=setTimeout(()=>{timers.delete(h);fn()},ms);timers.add(h);return h};ctx.clearTimeout=h=>{clearTimeout(h);timers.delete(h)};
  ctx.localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)};
  ctx.get=(key,fallback)=>{try{return JSON.parse(storage.get('rt_'+key)??'null')??fallback}catch(_){return fallback}};
- ctx.window.rtCloudApp={database:()=>({collection:name=>{assert.equal(name,'account_backups');return {where:({_id})=>({get:async()=>{if(s.beforeRead)await s.beforeRead(_id);if(s.readError)return {error:s.readError};return {data:s.records[_id]?[clone(s.records[_id])]:[]}}}),doc:id=>({set:async payload=>{if(s.beforeWrite)await s.beforeWrite(id);if(s.writeError)return {error:s.writeError};s.records[id]=clone(payload);s.writes.push({id,payload:clone(payload)});return {data:{}}}})}}})};
- vm.createContext(ctx);vm.runInContext(source,ctx);
- const c={ctx,storage,run:code=>vm.runInContext(code,ctx),async login(id=uid){ctx.window.rtLoggedIn=!!id;ctx.rtUser=id?{uid:id}:null;this.run('rtSyncAccountChanged()');await this.run('rtSyncTick()');this.run('clearTimeout(rtSyncTimer)')},async sync(){await this.run('rtSyncTick()');this.run('clearTimeout(rtSyncTimer)')},async edit(key,value){ctx.localStorage.setItem(key,serial(value));this.run(`rtSyncLocalChanged(${serial(key)})`);await this.sync()},dispose(){for(const h of timers)clearTimeout(h)}};
+ ctx.window.rtCloudApp={database:()=>({collection:name=>{assert.equal(name,'account_backups');return {where:({_id})=>({get:async()=>{s.reads.push(_id);if(s.beforeRead)await s.beforeRead(_id);if(s.readError)return {error:s.readError};return {data:s.records[_id]?[clone(s.records[_id])]:[]}}}),doc:id=>({set:async payload=>{if(s.beforeWrite)await s.beforeWrite(id);if(s.writeError)return {error:s.writeError};s.records[id]=clone(payload);s.writes.push({id,payload:clone(payload)});return {data:{}}}})}}})};
+ // Existing engine regression tests explicitly remove the source guard in this isolated VM only.
+ // The shipped source has no runtime flag or UI to enable cloud reads/writes.
+ assert.match(source,/const RT_SYNC_CLOUD_PAUSED=true;/);
+ vm.createContext(ctx);vm.runInContext(paused?source:source.replace('const RT_SYNC_CLOUD_PAUSED=true;','const RT_SYNC_CLOUD_PAUSED=false;'),ctx);
+ const c={ctx,storage,events,run:code=>vm.runInContext(code,ctx),async login(id=uid){ctx.window.rtLoggedIn=!!id;ctx.rtUser=id?{uid:id}:null;this.run('rtSyncAccountChanged()');await this.run('rtSyncTick()');this.run('clearTimeout(rtSyncTimer)')},async sync(){await this.run('rtSyncTick()');this.run('clearTimeout(rtSyncTimer)')},async edit(key,value){ctx.localStorage.setItem(key,serial(value));this.run(`rtSyncLocalChanged(${serial(key)})`);await this.sync()},dispose(){for(const h of timers)clearTimeout(h)}};
  clients.push(c);return c;
 }
 (async()=>{
@@ -63,5 +66,42 @@ function client(s,uid='a',storage=new Map()){
  check('Selecting default avatar removes a prior cloud photo',()=>assert.equal(JSON.parse(photoServer.records.a.values.rt_profile_a).photo,undefined));
  const failedWrite=server({a:seed('a')}),failedWriter=client(failedWrite);await failedWriter.login();failedWrite.writeError={code:'PERMISSION_DENIED',message:'denied'};await failedWriter.edit('rt_wheelItems',['写入失败一','写入失败二']);
  check('Cloud write rejection preserves both local changes and previous remote backup',()=>{assert.equal(failedWriter.storage.get('rt_wheelItems'),serial(['写入失败一','写入失败二']));assert.equal(failedWrite.records.a.values.rt_wheelItems,serial(['云端火锅','云端面条']));assert.equal(failedWriter.run('rtSyncReady'),false)});
+ // Reproduce the destructive case: local == baseline, but the new cloud has no backup.
+ const localValues=seed('a',{'rt_profile_a':serial({name:'手机昵称',avatar:'cat',photo:'data:image/jpeg;base64,LOCAL_PHOTO'})}).values;
+ const localStore=()=>new Map([...Object.entries(localValues),['rt_sync_active_uid','a'],['rt_sync_cache_a',serial({values:localValues,baseline:localValues,lastSyncedAt:10})],['hb_party_local_v1','{"version":1,"boards":["local-only"]}']]);
+ for(const [name,remote] of [['missing',null],['empty',{schema:2,values:{}}],['all-null',{schema:2,values:Object.fromEntries(Object.keys(localValues).map(k=>[k,null]))}],['empty-objects',{schema:2,values:{rt_settings:'{}',rt_profile_a:'{}'}}]]){
+  const empty=server(remote?{a:remote}:{}),protectedClient=client(empty,'a',localStore());await protectedClient.login();
+  check(name+' cloud cannot erase previously synced local data or initialize backup',()=>{
+   for(const [k,v] of Object.entries(localValues))assert.equal(protectedClient.storage.get(k),v);
+   assert.equal(empty.writes.length,0);assert.equal(protectedClient.run('rtSyncReady'),false);assert.match(protectedClient.run('rtSyncError'),/本机配置/);
+  });
+ }
+ const partial=server({a:{schema:2,values:{rt_drawItems:serial(['另一台甲','另一台乙']),rt_profile_a:'{}'}}}),partialClient=client(partial,'a',localStore());await partialClient.login();
+ check('Partial backup preserves absent nickname, photo, favorites, settings and wheel',()=>{
+  for(const k of ['rt_profile_a','rt_favorites','rt_settings','rt_wheelItems'])assert.equal(partialClient.storage.get(k),localValues[k]);
+  assert.equal(partialClient.storage.get('rt_drawItems'),partial.records.a.values.rt_drawItems);
+ });
+ const pausedServer=server({a:seed('a')}),pausedClient=client(pausedServer,'a',localStore(),true);await pausedClient.login();
+ await pausedClient.edit('rt_wheelItems',['暂停本机甲','暂停本机乙']);
+ pausedClient.events.online();pausedClient.events.visibilitychange();pausedClient.events.interval();await pausedClient.run('rtSyncBeforeLogout()');
+ check('Production pause blocks login, edits, reconnect, foreground, timer, retry and logout cloud access',()=>{
+  assert.equal(pausedServer.reads.length,0);assert.equal(pausedServer.writes.length,0);assert.equal(pausedClient.run('rtSyncReady'),false);assert.match(pausedClient.run('rtSyncState'),/仅保存在本机/);
+ });
+ check('Paused edits and uploaded avatar remain in local UID cache, offline records untouched',()=>{
+  const cache=JSON.parse(pausedClient.storage.get('rt_sync_cache_a'));
+  assert.equal(cache.values.rt_wheelItems,serial(['暂停本机甲','暂停本机乙']));assert.equal(cache.values.rt_profile_a,localValues.rt_profile_a);
+  assert.equal(pausedClient.storage.get('hb_party_local_v1'),'{"version":1,"boards":["local-only"]}');
+ });
+ await pausedClient.login('b');
+ check('Paused account switch isolates A data without uploading it as B',()=>{
+  assert.equal(pausedClient.storage.get('rt_profile_b'),undefined);assert.equal(pausedClient.storage.get('rt_wheelItems'),undefined);
+  assert.equal(JSON.parse(pausedClient.storage.get('rt_sync_cache_a')).values.rt_wheelItems,serial(['暂停本机甲','暂停本机乙']));assert.equal(pausedServer.reads.length,0);
+ });
+ const guestPause=client(server(),'',new Map([['rt_wheelItems',serial(['本机游客甲','本机游客乙'])]]),true);await guestPause.login('a');
+ check('Unattributed legacy preferences stay visible and exportable without being assigned to a new UID',()=>{
+  assert.equal(guestPause.storage.get('rt_wheelItems'),serial(['本机游客甲','本机游客乙']));
+  assert.equal(JSON.parse(guestPause.storage.get('rt_sync_guest_cache')).values.rt_wheelItems,serial(['本机游客甲','本机游客乙']));
+  assert.equal(guestPause.storage.get('rt_sync_cache_a'),undefined);assert.equal(guestPause.storage.get('rt_sync_active_uid'),undefined);
+ });
  console.log(`Account synchronization: ${checks} scenarios passed; no real cloud data accessed.`);
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>clients.forEach(c=>c.dispose()));

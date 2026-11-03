@@ -55,6 +55,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     private ApkUpdateManager apkUpdates;
     private boolean updateCheckFailed;
     private static final int AVATAR_PICK_REQUEST = 481;
+    private static final int BACKUP_SAVE_REQUEST = 482;
+    private static final int MAX_BACKUP_BYTES = 16 * 1024 * 1024;
+    private byte[] backupBytes;
+    private String backupRequestId;
     private ValueCallback<Uri[]> avatarFileCallback;
     private SharedPreferences prefs;
     private SensorManager sensorManager;
@@ -181,6 +185,25 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
     private void notifyUser(String message) {
         js("if(typeof toast==='function')toast(" + JSONObject.quote(message) + ");");
+    }
+    private void backupResult(String requestId, String code) {
+        js("if(window.rtBackupExportFinished)window.rtBackupExportFinished("
+            + JSONObject.quote(requestId) + "," + JSONObject.quote(code) + ");");
+    }
+    private void beginBackupExport(byte[] bytes, String requestId) {
+        if (webView == null || !HOME_URL.equals(webView.getUrl())
+            || apkUpdates != null && apkUpdates.isBlocking() || backupRequestId != null) {
+            backupResult(requestId, "FAILED"); return;
+        }
+        backupBytes = bytes; backupRequestId = requestId;
+        Intent picker = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        picker.addCategory(Intent.CATEGORY_OPENABLE);
+        picker.setType("application/json");
+        picker.putExtra(Intent.EXTRA_TITLE, "Happybox-local-backup-" + System.currentTimeMillis() + ".json");
+        try { startActivityForResult(picker, BACKUP_SAVE_REQUEST); }
+        catch (Exception ignored) {
+            backupBytes = null; backupRequestId = null; backupResult(requestId, "FAILED");
+        }
     }
     private File updateFile() { return new File(getFilesDir(), "randomtoolbox_update.html"); }
     private File updateHashFile() { return new File(getFilesDir(), "randomtoolbox_update.sha256"); }
@@ -370,6 +393,19 @@ public class MainActivity extends Activity implements SensorEventListener {
         return b.toString();
     }
     public class NativeBridge {
+        @JavascriptInterface public void exportLocalBackup(String json, String requestId) {
+            // Validate on the bridge thread; the picker and WebView origin checks run on the UI thread.
+            if (requestId == null || !requestId.matches("backup-[a-zA-Z0-9-]{1,80}")) return;
+            try {
+                if (json == null || json.length() > MAX_BACKUP_BYTES) throw new IOException();
+                byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+                if (bytes.length > MAX_BACKUP_BYTES) throw new IOException();
+                JSONObject data = new JSONObject(json);
+                if (!"happybox-local-backup".equals(data.optString("format"))
+                    || data.optInt("formatVersion") != 1 || data.optJSONObject("storage") == null) throw new IOException();
+                main.post(() -> beginBackupExport(bytes, requestId));
+            } catch (Exception ignored) { backupResult(requestId, "FAILED"); }
+        }
         @JavascriptInterface public boolean isSecurityProbeTestBuild() {
             return (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         }
@@ -484,6 +520,29 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == BACKUP_SAVE_REQUEST) {
+            final String requestId = backupRequestId;
+            final byte[] bytes = backupBytes; backupBytes = null;
+            if (requestId == null) return;
+            if (resultCode != RESULT_OK) {
+                backupRequestId = null; backupResult(requestId, "CANCELLED"); return;
+            }
+            final Uri selected = data == null ? null : data.getData();
+            if (bytes == null || selected == null || !"content".equals(selected.getScheme())) {
+                backupRequestId = null; backupResult(requestId, "FAILED"); return;
+            }
+            worker.execute(() -> {
+                // No broad storage permission: write only to the user-selected document URI.
+                try (OutputStream out = getContentResolver().openOutputStream(selected, "wt")) {
+                    if (out == null) throw new IOException();
+                    out.write(bytes); out.flush();
+                } catch (Exception ignored) {
+                    main.post(() -> { backupRequestId = null; backupResult(requestId, "FAILED"); }); return;
+                }
+                main.post(() -> { backupRequestId = null; backupResult(requestId, "SAVED"); });
+            });
+            return;
+        }
         if (requestCode != AVATAR_PICK_REQUEST || avatarFileCallback == null) return;
         ValueCallback<Uri[]> callback = avatarFileCallback;
         avatarFileCallback = null;
@@ -497,6 +556,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         callback.onReceiveValue(selected == null ? null : new Uri[]{selected});
     }
     @Override protected void onDestroy() {
+        backupBytes = null; backupRequestId = null;
         if(apkUpdates!=null)apkUpdates.destroy();
         if (avatarFileCallback != null) { avatarFileCallback.onReceiveValue(null); avatarFileCallback = null; }
         worker.shutdownNow();

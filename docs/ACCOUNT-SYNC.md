@@ -1,5 +1,7 @@
 # 账号恢复与固定签名
 
+> 当前 Document 初始化保护阶段：云端同步暂时暂停，保留本机配置并提供 JSON 导出。以下自动同步描述属于既有引擎行为，当前构建源码不会执行。详见 [Document 开通后的数据保护与只读验收](DOCUMENT-INITIALIZATION-PROTECTION.md)。旧 APK 不会因仓库更新自动获得保护；本轮未构建 APK。
+
 本次改动只在 `ui/android-happybox-redesign`，不修改 main、既有开发分支、CloudBase 环境 ID、认证接口或云端文档结构。
 
 ## 为什么以前更新需要卸载
