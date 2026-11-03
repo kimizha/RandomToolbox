@@ -24,7 +24,17 @@ def main():
     apk=Path('app/build/outputs/apk/debug/app-debug.apk')
     info=apk_info(apk,tools)
     with zipfile.ZipFile(apk) as archive:
-        info['contains_security_probe']=b'HAPPYBOX_SECURITY_PROBE_TEST_ONLY' in archive.read('assets/index.html')
+        html=archive.read('assets/index.html').decode('utf-8')
+        info['contains_security_probe']='HAPPYBOX_SECURITY_PROBE_TEST_ONLY' in html
+        info['contains_data_protection_test']='HAPPYBOX_DATA_PROTECTION_TEST_ONLY' in html
+    protection=os.environ.get('HAPPYBOX_DATA_PROTECTION_TEST')=='1'
+    if info['contains_data_protection_test']!=protection:raise SystemExit('APK protection mode differs from requested build')
+    if protection:
+        from data_protection_build import validate_source,validate_assets
+        validate_source(Path.cwd());validate_assets(html,Path.cwd())
+        if not info['debuggable'] or info['version_code']<=100159 or info['certificate_sha256']!=PROBE_CERT_SHA256:
+            raise SystemExit('Protection APK identity cannot cover delivered Debug APK 100159')
+        info.update(data_protection_test=True,cloud_sync_paused=True,local_json_export=True)
     expected_probe=os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1'
     if info['contains_security_probe']!=expected_probe:raise SystemExit('APK probe inclusion differs from explicit build mode')
     if expected_probe and (not info['debuggable'] or info['version_code']<=100158):raise SystemExit('Probe requires a Debug APK newer than 100158')
@@ -39,7 +49,11 @@ def main():
     previous_id=os.environ.get('RT_PREVIOUS_APK_ARTIFACT_ID','')
     previous_tag=os.environ.get('RT_PREVIOUS_APK_RELEASE_TAG','')
     previous={'comparison':'unavailable'};old=None
-    if previous_tag:
+    if protection:
+        path=os.environ.get('RT_DATA_PROTECTION_PRIOR_APK')
+        if not path or not Path(path).is_file():raise SystemExit('Verified previous APK is required; stop distribution')
+        old=Path(path);previous['artifact_id']='13084658987'
+    if old is None and previous_tag:
         folder=Path(os.environ['RUNNER_TEMP'])/'previous-release';folder.mkdir(exist_ok=True)
         result=subprocess.run(['gh','release','download',previous_tag,'--repo',os.environ['GITHUB_REPOSITORY'],'--pattern','*.apk','--dir',str(folder)],capture_output=True)
         files=list(folder.glob('*.apk'))
@@ -61,6 +75,10 @@ def main():
         if info['version_code']<=previous['version_code']:raise SystemExit('New APK versionCode must exceed previously delivered APK')
         previous['same_certificate']=info['certificate_sha256']==previous['certificate_sha256']
         previous['can_cover_install']=previous['same_certificate']
+        if protection:
+            from data_protection_build import validate_previous
+            validate_previous(previous,info['version_code'],expected_cert)
+            if not previous['can_cover_install']:raise SystemExit('Protection APK cannot cover old version; stop distribution')
     info['previous_apk']=previous
     output=Path('release-output');output.mkdir(exist_ok=True)
     name=f"Happybox-v{info['version_name']}-code{info['version_code']}.apk"

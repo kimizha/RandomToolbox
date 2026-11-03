@@ -7,6 +7,12 @@ provided=sum(bool(v) for v in values.values())
 if provided and provided!=len(names):raise SystemExit('Incomplete Android signing Secrets; all four are required')
 version=100000+int(os.environ.get('GITHUB_RUN_NUMBER','0'))
 if version>2147483647:raise SystemExit('Android versionCode exceeds the platform limit')
+protection=os.environ.get('HAPPYBOX_DATA_PROTECTION_TEST')=='1'
+if protection:
+ if os.environ.get('GITHUB_REF')!='refs/heads/ui/android-happybox-redesign':raise SystemExit('Protection test requires the UI branch')
+ if os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1':raise SystemExit('Protection build must not include a database probe')
+ if version<=100159:raise SystemExit('Protection versionCode must exceed APK 100159')
+ if provided!=len(names):raise SystemExit('Protection APK requires all fixed signing Secrets; no fallback')
 output=['ANDROID_VERSION_CODE='+str(version)]
 if not provided:
  output.append('RT_STABLE_SIGNING=false')
@@ -18,10 +24,10 @@ else:
  path.write_bytes(raw);path.chmod(0o600)
  result=subprocess.run(['keytool','-list','-keystore',str(path),'-alias',values['ANDROID_KEY_ALIAS'],'-storepass:env','ANDROID_KEYSTORE_PASSWORD'],capture_output=True)
  if result.returncode:raise SystemExit('Cannot open Android signing key; verify the signing Secrets (credentials omitted)')
- if os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1':
+ if os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1' or protection:
   from verify_signed_apk import PROBE_CERT_SHA256
   certificate=subprocess.run(['keytool','-exportcert','-keystore',str(path),'-alias',values['ANDROID_KEY_ALIAS'],'-storepass:env','ANDROID_KEYSTORE_PASSWORD'],capture_output=True)
-  if certificate.returncode or hashlib.sha256(certificate.stdout).hexdigest()!=PROBE_CERT_SHA256:raise SystemExit('Signing certificate differs from APK 100157; stopping before build')
+  if certificate.returncode or hashlib.sha256(certificate.stdout).hexdigest()!=PROBE_CERT_SHA256:raise SystemExit('Signing certificate differs from previously delivered fixed-signature APKs; stopping before build')
  output+=['ANDROID_KEYSTORE_FILE='+str(path),'RT_STABLE_SIGNING=true']
  print('Stable Android signing key validated (credentials omitted).')
 with open(os.environ['GITHUB_ENV'],'a',encoding='utf-8') as f:f.write('\n'.join(output)+'\n')

@@ -8,10 +8,13 @@ def gh(args):
     return r.stdout
 
 def main():
+    if os.environ.get('HAPPYBOX_DATA_PROTECTION_TEST')=='1':raise SystemExit('Data protection test APK cannot be published')
     if os.environ.get('GITHUB_REF')!='refs/heads/ui/android-happybox-redesign':raise SystemExit('Release requires the UI development branch')
     if os.environ.get('RT_STABLE_SIGNING')!='true':raise SystemExit('Stable signing must be configured')
     output=Path('release-output');report=json.loads((output/'verification.json').read_text())
+    if report.get('data_protection_test') or report.get('contains_data_protection_test'):raise SystemExit('Data protection test APK cannot be published')
     with zipfile.ZipFile(output/report['apk_filename']) as archive:
+        if b'HAPPYBOX_DATA_PROTECTION_TEST_ONLY' in archive.read('assets/index.html'):raise SystemExit('Data protection test APK cannot be published')
         if report.get('contains_security_probe') or b'HAPPYBOX_SECURITY_PROBE_TEST_ONLY' in archive.read('assets/index.html'):
             raise SystemExit('Security probe test APK cannot be published')
     if report['source_commit']!=os.environ['GITHUB_SHA'] or not report['matches_configured_certificate']:raise SystemExit('Verification/source mismatch')

@@ -14,7 +14,7 @@ class ReleaseChecks(unittest.TestCase):
   with zipfile.ZipFile(p/'app-debug.apk','w') as z:z.writestr('assets/index.html','<html>Offline fixture</html>')
   Path('app/build.gradle').write_text("versionName '2.7'")
   self.cert=b'public test certificate';self.fingerprint=hashlib.sha256(self.cert).hexdigest()
-  self.env={'ANDROID_HOME':'/test-sdk','ANDROID_KEYSTORE_FILE':'/not-read.p12','ANDROID_KEY_ALIAS':'test','ANDROID_KEYSTORE_PASSWORD':'SIGNING_SECRET_NEVER_PRINT','ANDROID_VERSION_CODE':'100321','GITHUB_SHA':'a'*40,'GITHUB_REF_NAME':'ui/android-happybox-redesign','GITHUB_REF':'refs/heads/ui/android-happybox-redesign','GITHUB_REPOSITORY':'test/repo','GITHUB_RUN_ID':'123','RUNNER_TEMP':str(self.root),'RT_STABLE_SIGNING':'true','HAPPYBOX_SECURITY_PROBE_TEST':'0','RT_PREVIOUS_APK_ARTIFACT_ID':'','RT_PREVIOUS_APK_RELEASE_TAG':''}
+  self.env={'ANDROID_HOME':'/test-sdk','ANDROID_KEYSTORE_FILE':'/not-read.p12','ANDROID_KEY_ALIAS':'test','ANDROID_KEYSTORE_PASSWORD':'SIGNING_SECRET_NEVER_PRINT','ANDROID_VERSION_CODE':'100321','GITHUB_SHA':'a'*40,'GITHUB_REF_NAME':'ui/android-happybox-redesign','GITHUB_REF':'refs/heads/ui/android-happybox-redesign','GITHUB_REPOSITORY':'test/repo','GITHUB_RUN_ID':'123','RUNNER_TEMP':str(self.root),'RT_STABLE_SIGNING':'true','HAPPYBOX_SECURITY_PROBE_TEST':'0','HAPPYBOX_DATA_PROTECTION_TEST':'0','RT_PREVIOUS_APK_ARTIFACT_ID':'','RT_PREVIOUS_APK_RELEASE_TAG':''}
   self.pkg='com.randomtoolbox.app';self.code='100321';self.actual_cert=self.fingerprint
  def fake_run(self,args,**kwargs):
   command=Path(args[0]).name
@@ -56,6 +56,19 @@ class ReleaseChecks(unittest.TestCase):
   with patch.dict(os.environ,self.env),self.assertRaises(SystemExit):publish.main()
  def test_unsigned_cannot_publish(self):
   with patch.dict(os.environ,{**self.env,'RT_STABLE_SIGNING':'false'}),self.assertRaises(SystemExit):publish.main()
+ def test_protection_mode_cannot_publish(self):
+  self.execute()
+  with patch.dict(os.environ,{**self.env,'HAPPYBOX_DATA_PROTECTION_TEST':'1'}),self.assertRaises(SystemExit):publish.main()
+ def test_protection_report_cannot_publish(self):
+  self.execute();path=Path('release-output/verification.json');report=json.loads(path.read_text());report['data_protection_test']=True;path.write_text(json.dumps(report))
+  with patch.dict(os.environ,self.env),self.assertRaises(SystemExit):publish.main()
+ def test_protection_assets_cannot_publish_with_forged_report(self):
+  self.execute()
+  with zipfile.ZipFile('release-output/Happybox-v2.7-code100321.apk','w') as z:z.writestr('assets/index.html','HAPPYBOX_DATA_PROTECTION_TEST_ONLY')
+  with patch.dict(os.environ,self.env),self.assertRaises(SystemExit):publish.main()
+ def test_normal_build_rejects_protection_assets(self):
+  with zipfile.ZipFile('app/build/outputs/apk/debug/app-debug.apk','w') as z:z.writestr('assets/index.html','HAPPYBOX_DATA_PROTECTION_TEST_ONLY')
+  with self.assertRaises(SystemExit):self.execute()
  def test_verified_release_targets_exact_ui_commit_and_warns_on_mismatch(self):
   self.execute();p=Path('release-output/verification.json');report=json.loads(p.read_text());report['previous_apk']={'comparison':'verified','same_certificate':False};p.write_text(json.dumps(report));calls=[]
   def fake_gh(args):

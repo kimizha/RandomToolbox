@@ -4,6 +4,10 @@ name: Build Android APK
 on:
   workflow_dispatch:
     inputs:
+      data_protection_test:
+        description: 'Build a backup/protection Debug APK only; never publish'
+        type: boolean
+        default: false
       security_probe:
         description: 'Build the temporary Debug-only CloudBase probe APK; never publish'
         type: boolean
@@ -74,11 +78,13 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       HAPPYBOX_SECURITY_PROBE_TEST: ${{ github.ref == 'refs/heads/ui/android-happybox-redesign' && (inputs.security_probe == true || contains(github.event.head_commit.message, '[security-probe-test]')) && '1' || '0' }}
+      HAPPYBOX_DATA_PROTECTION_TEST: ${{ github.ref == 'refs/heads/ui/android-happybox-redesign' && (inputs.data_protection_test == true || contains(github.event.head_commit.message, '[data-protection-test]')) && '1' || '0' }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     permissions:
       contents: write
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -103,6 +109,7 @@ jobs:
           node scripts/check_probe_comparison.cjs
           node --check scripts/sync.js
           node --check scripts/profile.js
+          node --check scripts/local-backup.js
           node --check app/src/main/assets/ui/happybox.js
           node --check app/src/main/assets/ui/choice-sheet.js
           node --check app/src/main/assets/ui/soup-game.js
@@ -114,6 +121,7 @@ jobs:
           python3 scripts/check_probe_signing.py
           node scripts/check_probe_transaction.cjs
           python3 scripts/check_release.py
+          python3 scripts/check_data_protection_build.py
           python3 scripts/check_apk_updates.py
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -164,8 +172,13 @@ jobs:
           }
           console.log('Validated ' + scripts.length + ' inline scripts');
           JS
+      - name: Verify data protection and previous APK before building
+        if: env.HAPPYBOX_DATA_PROTECTION_TEST == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/data_protection_build.py
       - name: Generate CloudBase diagnostic page
-        if: env.HAPPYBOX_SECURITY_PROBE_TEST != '1'
+        if: env.HAPPYBOX_SECURITY_PROBE_TEST != '1' && env.HAPPYBOX_DATA_PROTECTION_TEST != '1'
         env:
           CLOUDBASE_PUBLISHABLE_KEY: ${{ secrets.CLOUDBASE_PUBLISHABLE_KEY }}
         run: |
@@ -200,7 +213,7 @@ jobs:
           print('Diagnostic page generated (client key omitted from logs)')
           PY
       - name: Upload CloudBase diagnostic page
-        if: env.HAPPYBOX_SECURITY_PROBE_TEST != '1'
+        if: env.HAPPYBOX_SECURITY_PROBE_TEST != '1' && env.HAPPYBOX_DATA_PROTECTION_TEST != '1'
         uses: actions/upload-artifact@v4
         with:
           name: CloudBase-auth-diagnostic
@@ -231,12 +244,12 @@ jobs:
         if: env.RT_STABLE_SIGNING == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.HAPPYBOX_SECURITY_PROBE_TEST == '1' && 'Happybox-security-probe-debug-apk' || 'RandomToolbox-debug-apk' }}
+          name: ${{ env.HAPPYBOX_DATA_PROTECTION_TEST == '1' && 'Happybox-data-protection-debug-apk' || env.HAPPYBOX_SECURITY_PROBE_TEST == '1' && 'Happybox-security-probe-debug-apk' || 'RandomToolbox-debug-apk' }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
       - name: Publish verified UI prerelease
-        if: github.ref == 'refs/heads/ui/android-happybox-redesign' && env.RT_STABLE_SIGNING == 'true' && github.event_name == 'workflow_dispatch' && inputs.publish_preview == true && env.HAPPYBOX_SECURITY_PROBE_TEST != '1'
+        if: github.ref == 'refs/heads/ui/android-happybox-redesign' && env.RT_STABLE_SIGNING == 'true' && github.event_name == 'workflow_dispatch' && inputs.publish_preview == true && env.HAPPYBOX_SECURITY_PROBE_TEST != '1' && env.HAPPYBOX_DATA_PROTECTION_TEST != '1'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

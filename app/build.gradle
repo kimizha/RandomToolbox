@@ -58,10 +58,10 @@ dependencies {
     testImplementation 'org.robolectric:robolectric:4.14.1'
 }
 
-// Probe code is injected only by explicit test opt-in. Never package it in release variants.
+// Dedicated test assets are injected only by explicit opt-in. Never package them in release variants.
 gradle.taskGraph.whenReady { graph ->
     if (graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') } &&
-        file('src/main/assets/index.html').getText('UTF-8').contains('HAPPYBOX_SECURITY_PROBE_TEST_ONLY')) {
-        throw new GradleException('Security probe test assets cannot be packaged in release builds; use a clean source checkout')
+        ['HAPPYBOX_SECURITY_PROBE_TEST_ONLY', 'HAPPYBOX_DATA_PROTECTION_TEST_ONLY'].any { file('src/main/assets/index.html').getText('UTF-8').contains(it) }) {
+        throw new GradleException('Test-only assets cannot be packaged in release builds; use a clean source checkout')
     }
 }
