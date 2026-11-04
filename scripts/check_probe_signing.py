@@ -9,12 +9,12 @@ class ProbeSigningChecks(unittest.TestCase):
  def execute(self,matching):
   with tempfile.TemporaryDirectory() as directory:
    destination=Path(directory)/'github-env';cert=b'public-certificate-fixture'
-   env={'ANDROID_KEYSTORE_BASE64':base64.b64encode(b'non-key-fixture').decode(),'ANDROID_KEYSTORE_PASSWORD':'fixture','ANDROID_KEY_ALIAS':'fixture','ANDROID_KEY_PASSWORD':'fixture','HAPPYBOX_SECURITY_PROBE_TEST':'1','GITHUB_RUN_NUMBER':'158','RUNNER_TEMP':directory,'GITHUB_ENV':str(destination)}
+   env={'ANDROID_KEYSTORE_BASE64':base64.b64encode(b'non-key-fixture').decode(),'ANDROID_KEYSTORE_PASSWORD':'fixture','ANDROID_KEY_ALIAS':'fixture','ANDROID_KEY_PASSWORD':'fixture','HAPPYBOX_SECURITY_PROBE_TEST':'1','GITHUB_REF':'refs/heads/ui/android-happybox-redesign','GITHUB_RUN_NUMBER':'161','RUNNER_TEMP':directory,'GITHUB_ENV':str(destination)}
    expected=hashlib.sha256(cert).hexdigest() if matching else '0'*64
    with patch.dict(os.environ,env,clear=True),patch('subprocess.run',return_value=SimpleNamespace(returncode=0,stdout=cert)),patch.object(verify_signed_apk,'PROBE_CERT_SHA256',expected),contextlib.redirect_stdout(io.StringIO()):
     if matching:
      runpy.run_path(str(ROOT/'scripts/prepare_ci_signing.py'),run_name='__main__')
-     self.assertIn('ANDROID_VERSION_CODE=100158',destination.read_text())
+     self.assertIn('ANDROID_VERSION_CODE=100161',destination.read_text())
     else:
      with self.assertRaisesRegex(SystemExit,'stopping before build'):runpy.run_path(str(ROOT/'scripts/prepare_ci_signing.py'),run_name='__main__')
      self.assertFalse(destination.exists())

@@ -129,7 +129,11 @@ replace('</body></html>', account_fallback + '</body></html>')
 if os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST') == '1':
     from security_probe_manifest import create_manifest
     manifest=create_manifest(Path.cwd())
-    replace('</body></html>', '<script>window.hbProbeExpected=' + json.dumps(manifest) + ';\n' + Path('scripts/dev-security-probe.js').read_text(encoding='utf-8') + '</script></body></html>')
+    # Test-only capture at the existing initialization site: no second SDK/auth instance.
+    anchor="rtAuth=typeof app.auth==='function'?app.auth():app.auth;"
+    replace(anchor,anchor+"if(typeof window.hbAttachProbeContext==='function')window.hbAttachProbeContext({app,auth:rtAuth,currentUser:()=>window.rtLoggedIn?rtUser:null,syncPaused:()=>RT_SYNC_CLOUD_PAUSED===true});")
+    replace('</head>', '<style>'+Path('scripts/dev-security-probe.css').read_text(encoding='utf-8')+'</style></head>')
+    replace('</body></html>', '<script>window.hbProbeExpected=' + json.dumps(manifest) + ';\n' + Path('scripts/probe-context.js').read_text(encoding='utf-8') + '\n' + Path('scripts/dev-security-probe.js').read_text(encoding='utf-8') + '</script></body></html>')
 if os.environ.get('HAPPYBOX_DATA_PROTECTION_TEST') == '1':
     replace('</body></html>', '<script>/* HAPPYBOX_DATA_PROTECTION_TEST_ONLY */</script></body></html>')
 p.write_text(s, encoding='utf-8')

@@ -104,6 +104,7 @@ jobs:
       - name: Check account synchronization recovery
         run: |
           node --check scripts/dev-security-probe.js
+          node --check scripts/probe-context.js
           node scripts/check_security_probe.cjs
           node scripts/check_security_probe.cjs cloudfunctions/happyboxSecurityProbeComparison
           node scripts/check_probe_comparison.cjs
@@ -123,6 +124,11 @@ jobs:
           python3 scripts/check_release.py
           python3 scripts/check_data_protection_build.py
           python3 scripts/check_apk_updates.py
+      - name: Test read-only entry with an offline SDK fixture
+        if: env.HAPPYBOX_SECURITY_PROBE_TEST == '1'
+        run: |
+          python3 -m pip install 'playwright==1.56.0'
+          python3 scripts/check_dev_security_probe.py
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -173,7 +179,7 @@ jobs:
           console.log('Validated ' + scripts.length + ' inline scripts');
           JS
       - name: Verify data protection and previous APK before building
-        if: env.HAPPYBOX_DATA_PROTECTION_TEST == '1'
+        if: env.HAPPYBOX_DATA_PROTECTION_TEST == '1' || env.HAPPYBOX_SECURITY_PROBE_TEST == '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/data_protection_build.py
@@ -244,7 +250,7 @@ jobs:
         if: env.RT_STABLE_SIGNING == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.HAPPYBOX_DATA_PROTECTION_TEST == '1' && 'Happybox-data-protection-debug-apk' || env.HAPPYBOX_SECURITY_PROBE_TEST == '1' && 'Happybox-security-probe-debug-apk' || 'RandomToolbox-debug-apk' }}
+          name: ${{ env.HAPPYBOX_DATA_PROTECTION_TEST == '1' && 'Happybox-data-protection-debug-apk' || env.HAPPYBOX_SECURITY_PROBE_TEST == '1' && 'Happybox-database-readonly-debug-apk' || 'RandomToolbox-debug-apk' }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 

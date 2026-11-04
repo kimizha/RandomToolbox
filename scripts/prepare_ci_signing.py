@@ -8,10 +8,11 @@ if provided and provided!=len(names):raise SystemExit('Incomplete Android signin
 version=100000+int(os.environ.get('GITHUB_RUN_NUMBER','0'))
 if version>2147483647:raise SystemExit('Android versionCode exceeds the platform limit')
 protection=os.environ.get('HAPPYBOX_DATA_PROTECTION_TEST')=='1'
-if protection:
+probe=os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1'
+if protection or probe:
  if os.environ.get('GITHUB_REF')!='refs/heads/ui/android-happybox-redesign':raise SystemExit('Protection test requires the UI branch')
- if os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1':raise SystemExit('Protection build must not include a database probe')
- if version<=100159:raise SystemExit('Protection versionCode must exceed APK 100159')
+ if protection and probe:raise SystemExit('Select exactly one protected test build mode')
+ if version<=100160:raise SystemExit('Protected test versionCode must exceed APK 100160')
  if provided!=len(names):raise SystemExit('Protection APK requires all fixed signing Secrets; no fallback')
 output=['ANDROID_VERSION_CODE='+str(version)]
 if not provided:

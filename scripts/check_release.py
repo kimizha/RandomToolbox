@@ -50,9 +50,8 @@ class ReleaseChecks(unittest.TestCase):
  def test_main_cannot_publish(self):
   with patch.dict(os.environ,{**self.env,'GITHUB_REF':'refs/heads/main'}),self.assertRaises(SystemExit):publish.main()
  def test_probe_apk_cannot_publish_even_with_forged_report_flag(self):
-  with zipfile.ZipFile('app/build/outputs/apk/debug/app-debug.apk','w') as z:z.writestr('assets/index.html','HAPPYBOX_SECURITY_PROBE_TEST_ONLY')
-  self.env['HAPPYBOX_SECURITY_PROBE_TEST']='1'
-  self.execute();p=Path('release-output/verification.json');report=json.loads(p.read_text());self.assertTrue(report['contains_security_probe']);report['contains_security_probe']=False;p.write_text(json.dumps(report))
+  self.execute();p=Path('release-output/verification.json');report=json.loads(p.read_text());self.assertFalse(report['contains_security_probe'])
+  with zipfile.ZipFile('release-output/'+report['apk_filename'],'w') as z:z.writestr('assets/index.html','HAPPYBOX_SECURITY_PROBE_TEST_ONLY')
   with patch.dict(os.environ,self.env),self.assertRaises(SystemExit):publish.main()
  def test_unsigned_cannot_publish(self):
   with patch.dict(os.environ,{**self.env,'RT_STABLE_SIGNING':'false'}),self.assertRaises(SystemExit):publish.main()
