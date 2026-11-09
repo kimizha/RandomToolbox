@@ -1,0 +1,877 @@
+开心盒 Document 空文档探针补丁：测试与交付记录
+
+19 组可运行离线检查通过；有明确计数的检查共 756 项（含 37 项获批 SDK 离线检查）。
+另含 SDK 源码契约、完整题库验证及 13 项 JS 语法检查。
+未运行：真实 CloudBase 验收；原生 Robolectric（缺 Gradle/Android SDK）；设备测试（缺 adb/设备）。
+本记录不宣称线上部署或真实云端验收成功。
+
+生产代码仅修改 read-control.cjs 和 transaction-read.cjs，等同获批候选。
+只规范化读取阶段的精确 DOCUMENT_NOT_FOUND；status/statusCode 如提供必须为数字 404。
+不接受 DATABASE_DOCUMENT_NOT_EXIST、DOCUMENT_NOT_FOUND_ERROR、泛化 404 或消息匹配作为正常空文档。
+事务必须真实完成 START、READ、COMMIT；权限、集合、网络与提交错误保持失败。
+原有 UID 白名单、可信身份、环境检查、最小投影保持不变。
+新旧 ZIP 全量比较：只有两个获批模块不同，其余文件与依赖完全相同。
+V3 协议标记保持 readonly-comparison-v3，以兼容现有 100161 APK。
+手机内旧源码摘要不能证明本次新包一致；请以本次 manifest 核对，不自动确认线上源码一致。
+
+新包：HappyboxSecurityProbe-readonly-document-absent-v3.zip
+SHA-256：d785c6a6a1a2c257d023cc420cb3c5cdc145b049dbe10db1a7af1011a5d183ad
+回滚包：HappyboxSecurityProbe-readonly-comparison-v3-rollback.zip
+回滚 SHA-256：90a7958152e8372deea9d49a5a481a50029bb52e6616a622a5916efaf86b6d44
+
+逐文件 SHA-256：
+index.js  d0e686bf2b6c52f45b9f0368a045ee270fd1e3d6d6dcc83893e90cd5be62a812
+probe.cjs  64f487bd409c6a302c47e6d3b95a92f6c0ec8e4d3c28ba469d569370bbc99eec
+read-control.cjs  d7992f317855c9b95f16d4a4229584cfe88715eaed8c9d5502876e8b9e42bdc4
+transaction-read.cjs  5daec92fdd30e6663f56f640a076ff28f3d049ab77539499e7b1b6dbc3f6b78b
+package.json  25a65f02f2b92bd997fbb8b1f46a62de6e95881ce7442839d8666950b0a318c4
+package-lock.json  2ef86562af26d38ccdbfbd727b7217aa9b15857197403ecc428dc51841c5ddd7
+
+手动部署与回滚方案（等待用户确认；本轮不部署）：
+1. 部署前先保存当前真实线上代码 ZIP；保留 UID 白名单、环境变量、执行角色、Node.js 20.19 和 index.main。
+2. 在同名 happyboxSecurityProbe 上传本次 ZIP；不新增 HTTP 触发器、不修改权限或业务数据。
+3. 部署后使用现有 100161 APK 的只读入口，由真实登录会话调用 {}，不恢复同步。
+4. 空集合预期：普通读取 DOCUMENT_ABSENT；事务 phase=COMPLETE、diagnosticCode=DOCUMENT_ABSENT、code=READ_PREFLIGHT_COMPLETE；综合 BOTH_READS_VERIFIED。
+5. 任一事务阶段失败必须保持失败，不创建测试文档辅助通过。
+6. 下载部署后 ZIP，运行 python3 scripts/check_probe_deployment.py <下载的ZIP> cloudfunctions/happyboxSecurityProbeComparison，逐一比对六个源码文件。
+7. 回滚时向同名函数上传已提供的 rollback ZIP（或部署前保存并核对的线上 ZIP），保留环境、角色及运行参数。回滚会恢复原空文档误判行为；无需回滚数据库、APK 或用户资料。
+8. 代码回滚只在 UI 分支恢复两个模块与原 canonical ZIP；不改 main。
+
+完整离线命令与结果：
+
+COMMAND: node scripts/check_probe_document_absence.cjs /tmp/happybox-probe-locked-deps-kypqjs0u
+EXIT: 0
+PASS Original ordinary read classifies SDK missing exception as failure
+PASS Original actual SDK transaction starts, missing read fails and rolls back
+PASS Candidate normalizes canonical missing GET to absence
+PASS Candidate succeeds only after actual SDK commit path returns successfully
+PASS DATABASE_PERMISSION_DENIED ordinary error is not successful absence
+PASS DATABASE_PERMISSION_DENIED transaction READ remains failed, commit is not called
+PASS DATABASE_COLLECTION_NOT_EXIST ordinary error is not successful absence
+PASS DATABASE_COLLECTION_NOT_EXIST transaction READ remains failed, commit is not called
+PASS DATABASE_NOT_FOUND ordinary error is not successful absence
+PASS DATABASE_NOT_FOUND transaction READ remains failed, commit is not called
+PASS NETWORK_ERROR ordinary error is not successful absence
+PASS NETWORK_ERROR transaction READ remains failed, commit is not called
+PASS DATABASE_TIMEOUT ordinary error is not successful absence
+PASS DATABASE_TIMEOUT transaction READ remains failed, commit is not called
+PASS DATABASE_TRANSACTION_CONFLICT ordinary error is not successful absence
+PASS DATABASE_TRANSACTION_CONFLICT transaction READ remains failed, commit is not called
+PASS DATABASE_DOCUMENT_NOT_EXIST ordinary error is not successful absence
+PASS DATABASE_DOCUMENT_NOT_EXIST transaction READ remains failed, commit is not called
+PASS OTHER_ERROR ordinary error is not successful absence
+PASS OTHER_ERROR transaction READ remains failed, commit is not called
+PASS START error never normalized as missing document
+PASS COMMIT error never normalized as missing document
+PASS COMMIT error never normalized as missing document
+PASS Returned canonical error also normalizes
+PASS Returned canonical error also normalizes
+PASS Contradictory status, generic 404 or permission message cannot become absence
+PASS Contradictory status, generic 404 or permission message cannot become absence
+PASS Contradictory status, generic 404 or permission message cannot become absence
+PASS Contradictory status, generic 404 or permission message cannot become absence
+PASS Contradictory status, generic 404 or permission message cannot become absence
+PASS Existing valid empty-data behavior preserved
+PASS Existing valid empty-data behavior preserved
+PASS anonymous still rejected before database access
+PASS wrong environment still rejected before database access
+PASS not allowed still rejected before database access
+PASS Patched candidate preserves V3 result contract and no private payload escapes
+PASS External network requests
+37 offline production regression checks passed; actual locked SDK with mocked gateway, no Tencent Cloud access.
+
+
+COMMAND: node scripts/check_probe_transaction.cjs
+EXIT: 0
+PASS SDK transaction null is a normal absent document
+PASS Legacy empty list is also absent
+PASS Present document UID matches
+PASS Nonmatching UID result rejected
+PASS Malformed data rejected {}
+PASS Malformed data rejected {}
+PASS Malformed data rejected {"data":""}
+PASS Malformed data rejected {"data":{}}
+PASS Malformed data rejected {"data":[{},{}]}
+PASS Missing transaction API distinguished
+PASS Start permission denied
+PASS Unsupported transaction start
+PASS Read permission denied
+PASS Thrown missing document requires successful commit in patched implementation
+PASS Returned error distinguished
+PASS Null read then commit failure is not success
+PASS Unknown exception does not leak raw details
+PASS No callback cannot fabricate success
+PASS Commit permission separately classified
+PASS Missing collection distinguished
+20 offline integrated transaction scenarios passed. No CloudBase calls or writes.
+
+
+COMMAND: node scripts/check_probe_transaction.cjs cloudfunctions/happyboxSecurityProbeComparison
+EXIT: 0
+PASS SDK transaction null is a normal absent document
+PASS Legacy empty list is also absent
+PASS Present document UID matches
+PASS Nonmatching UID result rejected
+PASS Malformed data rejected {}
+PASS Malformed data rejected {}
+PASS Malformed data rejected {"data":""}
+PASS Malformed data rejected {"data":{}}
+PASS Malformed data rejected {"data":[{},{}]}
+PASS Missing transaction API distinguished
+PASS Start permission denied
+PASS Unsupported transaction start
+PASS Read permission denied
+PASS Thrown missing document requires successful commit in patched implementation
+PASS Returned error distinguished
+PASS Null read then commit failure is not success
+PASS Unknown exception does not leak raw details
+PASS No callback cannot fabricate success
+PASS Commit permission separately classified
+PASS Missing collection distinguished
+20 offline integrated transaction scenarios passed. No CloudBase calls or writes.
+
+
+COMMAND: node scripts/check_probe_comparison.cjs
+EXIT: 0
+PASS Same db, same UID, both read successfully
+PASS Both empty results are normal
+PASS Actual reported start failure kept distinct
+PASS Ordinary error does not skip transaction: PERMISSION_DENIED
+PASS Ordinary error does not skip transaction: DATABASE_NOT_FOUND
+PASS Ordinary error does not skip transaction: COLLECTION_NOT_FOUND
+PASS Ordinary error does not skip transaction: NOT_SUPPORTED
+PASS Ordinary error does not skip transaction: OTHER
+PASS Explicit route error categorized
+PASS Both missing collection is not fabricated success
+PASS Commit refusal not successful
+PASS Other UID returned cannot pass
+PASS Ordinary returned error classified
+PASS Ordinary malformed data not success
+PASS Hanging ordinary read prevents later transaction
+PASS Hanging transaction retains ordinary result
+17 offline comparison scenarios passed; no CloudBase calls or data writes.
+
+
+COMMAND: node scripts/check_security_probe.cjs
+EXIT: 0
+PASS Own trusted identity; own transaction read only
+PASS Normal null document succeeds
+PASS Mismatched document UID is rejected
+PASS Missing identity denied
+PASS Anonymous identity denied
+PASS Missing anonymous classification denied
+PASS Conflicting runtime identity denied
+PASS Conflicting user identity denied
+PASS Other environment denied
+PASS Missing environment denied
+PASS Provider identity failure fails closed
+PASS No transaction method reported accurately
+PASS Failed read not presented as success
+PASS Empty server allowlist denies database access
+PASS Other tester UID denies database access
+PASS Malformed server allowlist fails closed
+PASS Oversized server allowlist fails closed
+PASS Returned read error is not success
+PASS Returned error code is not success
+PASS Missing response data is not success
+PASS Empty result can verify a read, not backup existence
+21 offline security preflight scenarios passed; no CloudBase connection.
+
+
+COMMAND: node scripts/check_security_probe.cjs cloudfunctions/happyboxSecurityProbeComparison
+EXIT: 0
+PASS Own trusted identity; own transaction read only
+PASS Normal null document succeeds
+PASS Mismatched document UID is rejected
+PASS Missing identity denied
+PASS Anonymous identity denied
+PASS Missing anonymous classification denied
+PASS Conflicting runtime identity denied
+PASS Conflicting user identity denied
+PASS Other environment denied
+PASS Missing environment denied
+PASS Provider identity failure fails closed
+PASS No transaction method reported accurately
+PASS Failed read not presented as success
+PASS Empty server allowlist denies database access
+PASS Other tester UID denies database access
+PASS Malformed server allowlist fails closed
+PASS Oversized server allowlist fails closed
+PASS Returned read error is not success
+PASS Returned error code is not success
+PASS Missing response data is not success
+PASS Empty result can verify a read, not backup existence
+21 offline security preflight scenarios passed; no CloudBase connection.
+
+
+COMMAND: node scripts/check_probe_sdk_contract.cjs /tmp/happybox-probe-locked-deps-kypqjs0u
+EXIT: 0
+Pinned SDK source contract: transaction doc.get empty result becomes data=null.
+Integrated probe accepts SDK empty shape after transaction success.
+SDK source-contract and isolated reproduction passed; not real-cloud integration.
+
+
+COMMAND: node scripts/check_sync.cjs
+EXIT: 0
+PASS Fresh install restores configuration immediately
+PASS Fresh install restores profile and favorites
+PASS Restored legacy favorites display only the first choice
+PASS Restore never overwrites a populated cloud backup with defaults
+PASS Saved configuration reaches existing schema and collection
+PASS Reinstall restores last uploaded settings
+PASS Legacy login default profile cannot erase cloud name/avatar
+PASS Switching account restores B without leaking A preferences
+PASS Switching back restores A
+PASS Permission failure keeps edits locally and exposes a useful error
+PASS Offline changes survive process restart and upload after reconnect
+PASS Edit during initial restore preserves cloud fields user did not change
+PASS A stale response from A cannot populate B after account switch
+PASS Guest settings are retained locally but do not silently overwrite account data
+PASS Edit made during upload is not marked synced or lost
+PASS Unsupported schema is reported without replacing cloud data
+PASS Malformed remote JSON never becomes local configuration
+PASS Oversized avatar stays local, while cloud data and failure state are preserved
+PASS Profile sync does not reset an in-progress draw round
+PASS Storage failure before ownership transition cannot erase local options
+PASS Selecting default avatar removes a prior cloud photo
+PASS Cloud write rejection preserves both local changes and previous remote backup
+PASS missing cloud cannot erase previously synced local data or initialize backup
+PASS empty cloud cannot erase previously synced local data or initialize backup
+PASS all-null cloud cannot erase previously synced local data or initialize backup
+PASS empty-objects cloud cannot erase previously synced local data or initialize backup
+PASS Partial backup preserves absent nickname, photo, favorites, settings and wheel
+PASS Production pause blocks login, edits, reconnect, foreground, timer, retry and logout cloud access
+PASS Paused edits and uploaded avatar remain in local UID cache, offline records untouched
+PASS Paused account switch isolates A data without uploading it as B
+PASS Unattributed legacy preferences stay visible and exportable without being assigned to a new UID
+Account synchronization: 31 scenarios passed; no real cloud data accessed.
+
+
+COMMAND: node scripts/check_party_core.cjs
+EXIT: 0
+PASS Bomb hides both boundary values correctly
+PASS Bomb rejects invalid ranges
+PASS Bomb rejects invalid guesses without recording them
+PASS Bomb example uses exclusive updated bounds
+PASS 500 deterministic bomb rounds always retain the secret
+PASS Decimal input converts to integer hundredths
+PASS Malformed and zero amounts rejected
+PASS Independent +100 then -30 equals +70
+PASS Transfer produces two equal opposite legs
+PASS 1000 transfers sum exactly to zero without floating error
+PASS Cannot transfer to self, missing or archived player
+PASS Negative transfer rejected
+PASS Closed sessions cannot add entries
+PASS Editing and deleting transfer keeps balance
+PASS Removed player retains historic amount
+PASS Cannot silently drop a missing player in old records
+PASS Persisted transfers must balance
+PASS Local store survives JSON serialization
+PASS Unknown schema is never treated as an empty ledger
+PASS Word lists remove blanks and duplicate lines
+PASS All six charades categories have at least 30 distinct offline words
+PASS Task banks have sufficient distinct tasks for ten players
+PASS Opening credit excluded from net change
+PASS Independent board can transfer and adjust in same session
+PASS Negative initial credit rejected without affecting records
+25 offline party rule checks passed
+
+
+COMMAND: node scripts/check_game_library.cjs
+EXIT: 0
+{"truth":200,"dare":160,"spy":419,"soups":103,"levels":{"easy":25,"medium":38,"hard":40}}
+Curated library validation passed; no external content or cloud calls.
+
+
+COMMAND: python3 scripts/check_apk_updates.py
+EXIT: 0
+PASS Latest APK is not blocked
+PASS APK newer than remote latest is not blocked
+PASS Ordinary update has no minimum-version block
+PASS Force requires below minimum
+PASS Minimum version itself is optional
+PASS Web resource version is not part of the decision
+PASS Remote emergency switch changes forced to ordinary
+PASS Missing code rejected
+PASS String version code rejected
+PASS Fractional version code rejected
+PASS Minimum above latest rejected
+PASS Negative code rejected
+PASS String force flag rejected
+PASS Check interval zero rejected
+PASS Unbounded interval rejected
+PASS Empty force download URL cannot enable force
+PASS Blank URL and disabled force safe for a new APK
+PASS Blank URL cannot offer a broken update to older APK
+PASS Reject unsafe URL: http://test.lanzou.com/i1
+PASS Reject unsafe URL: javascript:alert(1)
+PASS Reject unsafe URL: file:///tmp/app.apk
+PASS Reject unsafe URL: https://evil.example/app
+PASS Reject unsafe URL: https://lanzou.com.evil.example/i1
+PASS Reject unsafe URL: https://lanzou.com@evil.example/i1
+PASS Reject unsafe URL: https://evil.example@lanzou.com/i1
+PASS Reject unsafe URL: https://lanzou.com:444/i1
+PASS Reject unsafe URL: https://lanzou.com/
+PASS Reject unsafe URL: https://test.lanzou.com/i1
+PASS Allow official HTTPS sharing domain
+PASS Allow official HTTPS sharing domain
+PASS Allow official HTTPS sharing domain
+PASS Allow official HTTPS sharing domain
+PASS Malformed JSON rejected
+PASS Trailing garbage rejected
+PASS Oversized title rejected
+PASS No configuration never locks a fresh install
+PASS Concurrent request is coalesced
+PASS Offline failure releases request and permits local tools
+PASS Fresh forced response blocks
+PASS Ordinary page navigation cannot clear native forced state
+PASS Returning from download keeps restriction during recheck
+PASS Installed old APK still forced on return
+PASS Emergency remote off removes forced restriction
+PASS Network loss releases restriction immediately
+PASS Network recovery can refresh remote policy
+PASS Timed-out forced response cannot override emergency-off response
+PASS Automatic interval honored after success
+PASS Periodic refresh becomes due
+PASS Clock rollback triggers fresh check
+PASS Cached force config alone cannot lock an offline launch
+PASS Timeout never leaves checking forever
+PASS Manual/new startup check is independent of login
+PASS Failure backoff starts at one minute
+PASS Failure backoff grows without repeated tight polling
+PASS Failure backoff is bounded at fifteen minutes
+55 APK policy and lifecycle checks passed
+Repository version.json validated: latest=100155, minimum=100155, force=false, downloadConfigured=false
+
+
+COMMAND: python3 scripts/check_data_protection_build.py
+EXIT: 0
+...........................
+----------------------------------------------------------------------
+Ran 27 tests in 0.450s
+
+OK
+
+
+COMMAND: python3 scripts/check_probe_signing.py
+EXIT: 0
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.006s
+
+OK
+
+
+COMMAND: python3 scripts/check_release.py
+EXIT: 0
+...............
+----------------------------------------------------------------------
+Ran 15 tests in 0.033s
+
+OK
+
+
+COMMAND: python3 scripts/check_dev_security_probe.py
+EXIT: 0
+PASS normal opt-in packages adapter and UI together
+PASS probe opt-in packages adapter and UI together
+PASS Local reviewed package manifest remains V3
+PASS Changed function source cannot pass local manifest
+PASS Normal build contains neither test entry nor adapter
+PASS Non-Debug runtime does not create entry
+PASS One original SDK initialization, no automatic probe or business read
+PASS Original environment and region reused
+PASS One-click button, no manual source checkbox
+PASS Remote source remains explicitly unverified
+PASS SDK call uses fixed function and exact empty data
+PASS Actual attached instance succeeds without re-login
+PASS Three separate result cards
+PASS Copied summary contains no UID, credentials or arbitrary response fields
+PASS Display excludes UID and unknown response fields
+PASS Logged-out session is rejected without function call
+PASS Frontend login flag cannot replace SDK session
+PASS Session error sanitized, no function call
+PASS Uninitialized SDK reports not ready
+PASS Sync pause is a precondition, never changed
+PASS Network/function error safely reported
+PASS Missing function halts without fallback deployment
+PASS V2 revision stops with explicit mismatch
+PASS Missing revision cannot succeed
+PASS Server whitelist refusal respected
+PASS Unexpected UID mismatch rejected without display
+PASS Environment mismatch is not success
+PASS Empty collection absence verifies both reads
+PASS Ordinary failure is independent of verified transaction
+PASS START transaction failure preserves ordinary success
+PASS START transaction stages reported accurately
+PASS READ transaction failure preserves ordinary success
+PASS READ transaction stages reported accurately
+PASS COMMIT transaction failure preserves ordinary success
+PASS COMMIT transaction stages reported accurately
+PASS Both failures never masquerade as empty success
+PASS Budget timeout does not invent transaction stages
+PASS Contradictory overall result cannot pass
+PASS Inconsistent presence cannot pass
+PASS Unrecognized diagnostic fields suppressed
+PASS Missing transaction evidence is not success
+PASS Spinner and duplicate-click protection active
+PASS Logout discards an in-flight result
+PASS Post-call SDK identity change rejects stale result
+PASS UI timeout does not allow overlapping SDK request
+PASS Late success cannot overwrite timeout; retry waits for settlement
+PASS Probe never changes local preferences, backup or synchronization state
+PASS Backup entry is retained
+PASS 320px dark=True: no overflow
+PASS 320px dark=False: no overflow
+PASS 390px dark=True: no overflow
+PASS 390px dark=False: no overflow
+PASS 768px dark=True: no overflow
+PASS 768px dark=False: no overflow
+PASS No external network or runtime errors
+55 offline probe-entry integration checks passed; no real CloudBase calls or writes.
+
+
+COMMAND: python3 scripts/check_local_backup.py
+EXIT: 0
+PASS Backup preserves schema:2 contract and every allowed raw value
+PASS User photo, all retained UID caches and legacy favorite order remain intact
+PASS Credentials and unknown storage excluded
+PASS Generating export does not mutate local data
+PASS Browser downloads a real parseable UTF-8 JSON backup
+PASS Browser does not falsely claim file-save completion
+PASS Native save requested once; repeated taps blocked and data unchanged
+PASS Native save button disabled pending actual file result
+PASS Unrelated callback cannot claim success
+PASS Cancel releases controls and preserves all original data
+PASS Write failure reports failure, never saved
+PASS Only successful native completion reports saved
+PASS Older APK without SAF bridge is clearly identified
+PASS Bridge exception clears pending state safely
+PASS Backup remains available without login
+PASS Sync panel blocks cloud writes and offers local backup
+PASS 320px dark=True: no overflow
+PASS 320px dark=False: no overflow
+PASS 390px dark=True: no overflow
+PASS 390px dark=False: no overflow
+PASS 768px dark=True: no overflow
+PASS 768px dark=False: no overflow
+PASS All startup, edit, foreground and export operations leave cloud untouched
+PASS Storage read failure aborts export
+PASS Backup limit counts UTF-8 bytes and fails without altering storage
+PASS No browser runtime errors
+26 offline local-backup checks passed; no CloudBase calls or APK build.
+
+
+COMMAND: python3 scripts/check_choice_ui.py
+EXIT: 0
+{
+  "passed": 51,
+  "checks": [
+    "Native selector hidden and custom button visible",
+    "Spy uses themed sheet with three choices",
+    "Android Back closes only selector",
+    "Choice applies native source value and visible label",
+    "Selected count is consumed by existing spy rules",
+    "Settings choice dispatches original save handler",
+    "Back preserves parent form and text",
+    "Nested choice saves correct points unit",
+    "Original transfer validation still rejects self transfer",
+    "Both remaining decks start at 100 percent",
+    "Truth percentage uses its own expanded bank",
+    "Dare percentage uses its own expanded bank",
+    "No raw remaining counts shown",
+    "Exhausted deck displays 0 percent",
+    "Reset restores 100 percent",
+    "Setup explains all six soup terms",
+    "Custom difficulty selection filters actual cases",
+    "Title has two clickable colored type badges",
+    "Type explanation shows only this soup classifications",
+    "Type explanation Back preserves current case",
+    "Classified case white has correct badge",
+    "Explanation limited to white case tags",
+    "Classified case red has correct badge",
+    "Explanation limited to red case tags",
+    "Classified case black has correct badge",
+    "Explanation limited to black case tags",
+    "Classified case spicy has correct badge",
+    "Explanation limited to spicy case tags",
+    "Classified case realistic has correct badge",
+    "Explanation limited to realistic case tags",
+    "Classified case supernatural has correct badge",
+    "Explanation limited to supernatural case tags",
+    "Choice sheet fits 320x568 dark=False",
+    "Keyboard focus stays in sheet 320 dark=False",
+    "Escape cancels choice 320 dark=False",
+    "Choice sheet fits 320x568 dark=True",
+    "Keyboard focus stays in sheet 320 dark=True",
+    "Escape cancels choice 320 dark=True",
+    "Choice sheet fits 390x844 dark=False",
+    "Keyboard focus stays in sheet 390 dark=False",
+    "Escape cancels choice 390 dark=False",
+    "Choice sheet fits 390x844 dark=True",
+    "Keyboard focus stays in sheet 390 dark=True",
+    "Escape cancels choice 390 dark=True",
+    "Choice sheet fits 844x390 dark=False",
+    "Keyboard focus stays in sheet 844 dark=False",
+    "Escape cancels choice 844 dark=False",
+    "Choice sheet fits 844x390 dark=True",
+    "Keyboard focus stays in sheet 844 dark=True",
+    "Escape cancels choice 844 dark=True",
+    "No uncaught JS errors"
+  ],
+  "errors": []
+}
+
+
+COMMAND: python3 scripts/check_party_ui.py
+EXIT: 0
+{
+  "passed": 123,
+  "checks": [
+    "Four existing games retained",
+    "Score moved out of games",
+    "Score available in tools",
+    "Spy warning visible on entry",
+    "bomb setup 320px dark=False no overflow",
+    "charades setup 320px dark=False no overflow",
+    "taboo setup 320px dark=False no overflow",
+    "score setup 320px dark=False no overflow",
+    "bomb setup 320px dark=True no overflow",
+    "charades setup 320px dark=True no overflow",
+    "taboo setup 320px dark=True no overflow",
+    "score setup 320px dark=True no overflow",
+    "bomb setup 360px dark=False no overflow",
+    "charades setup 360px dark=False no overflow",
+    "taboo setup 360px dark=False no overflow",
+    "score setup 360px dark=False no overflow",
+    "bomb setup 360px dark=True no overflow",
+    "charades setup 360px dark=True no overflow",
+    "taboo setup 360px dark=True no overflow",
+    "score setup 360px dark=True no overflow",
+    "bomb setup 390px dark=False no overflow",
+    "charades setup 390px dark=False no overflow",
+    "taboo setup 390px dark=False no overflow",
+    "score setup 390px dark=False no overflow",
+    "bomb setup 390px dark=True no overflow",
+    "charades setup 390px dark=True no overflow",
+    "taboo setup 390px dark=True no overflow",
+    "score setup 390px dark=True no overflow",
+    "Empty range rejected",
+    "Bomb secret absent before hit",
+    "Range excludes low guess",
+    "Guess records removed from UI",
+    "Bomb result simplified",
+    "Bomb opens choice page without auto draw",
+    "Return button replaces truth intro",
+    "Existing truth draw retained",
+    "Returns directly to bomb range setup",
+    "Charades has no native select or retired buttons",
+    "Mixed category and mixed performance default",
+    "Category choices styled as cards",
+    "Mixed deck combines all six unique categories",
+    "Ready hides answers",
+    "Repeated tap only scores once",
+    "Background pauses charades and hides word",
+    "Charades does not store new scores",
+    "Taboo defaults to owner only, no count/category fields",
+    "Taboo has detailed rules",
+    "Owner task hidden until countdown ends",
+    "Owner has visible 3-second countdown",
+    "Background cancels reveal timer",
+    "After countdown task visible",
+    "Landscape task fits",
+    "Guest selection explains owner excluded",
+    "Two guests receive three distinct tasks",
+    "Pre-reveal copy explains allocation order",
+    "First guest gets 5-second countdown",
+    "Handoff hides next task",
+    "Later guest gets only 3 seconds",
+    "Owner last with own-task warning",
+    "Owner still gets 3 seconds",
+    "Taboo continues to reuse existing dare",
+    "Taboo challenge return preserves player",
+    "Score board creates players",
+    "Score board 320px no overflow",
+    "Score board 360px no overflow",
+    "Independent score totals +70",
+    "Reload retains board and both records",
+    "Editing recalculates saved balance",
+    "Delete entry recalculates balance",
+    "Undo restores deleted record",
+    "Ledger Back returns to same score board",
+    "Clear requires second confirmation",
+    "Cancel clear retains records",
+    "Confirmed clear empties only this board",
+    "Clear can be undone once",
+    "Removing player preserves historical identity",
+    "Player can be added mid-session",
+    "Player rename persisted",
+    "Finish archives session",
+    "Transfer button starts positive amount",
+    "Transfer stores a single balanced transaction",
+    "Transfer edits both legs atomically",
+    "UI rejects transfer to same player",
+    "Storage failure never applies unsaved balances",
+    "Transfer deletion removes both sides",
+    "Two sessions persist independently",
+    "Score board Back returns to saved session list",
+    "New boards have no mode selector",
+    "Initial 500 plus 65 displays balance 565",
+    "Initial and net displayed separately",
+    "Saving opening twice never doubles balance",
+    "Transfer changes both balance and net without changing initial",
+    "Pure mode hides management",
+    "Pure mode retains recording and explicit Back",
+    "Pure mode 320px no overflow",
+    "Pure mode 390px no overflow",
+    "Pure mode updates the same ledger",
+    "Android Back exits pure mode first",
+    "Score actions and scroll never vibrate",
+    "Opening credit survives reload",
+    "Clear removes initial credit too",
+    "Undo restores initial and balances together",
+    "Score list returns to tools",
+    "Old transfer board preserves history and supports adjustment",
+    "Ledger appears as first common tool",
+    "Common ledger card opens real journal",
+    "Ledger favorite retained after reload",
+    "No music card or audio element remains",
+    "Money is default unit",
+    "Money board uses money labels",
+    "Board reminder is visible without old storage sentence",
+    "Transfer uses money label and round wording",
+    "Pure Back remains visible on scroll",
+    "Ledger Back remains visible after long scroll",
+    "Home choice asks confirmation",
+    "Cancel does not change home",
+    "Selected party home survives reopening",
+    "Android Back at party home exits normally",
+    "Back from other root returns to chosen home",
+    "Can restore original home",
+    "Points unit keeps score terminology",
+    "No unexpected external page errors",
+    "No uncaught browser errors"
+  ],
+  "errors": []
+}
+
+
+COMMAND: python3 scripts/check_ui.py
+EXIT: 0
+Injected RT_AUTH_NATIVE_V3 account UI
+{
+  "passed": 210,
+  "checks": [
+    "Only one favorite rendered after repeated selections",
+    "Party entry matches common card dimensions",
+    "Home replaces discovery line with party heading",
+    "Party entry retains original illustration",
+    "Large party entry opens games",
+    "Selecting new favorite replaces previous favorite",
+    "Current favorite can be removed",
+    "Legacy multi-favorite list shows first choice only",
+    "Single favorite manager has no sorting arrows",
+    "Music card removed",
+    "Favorites main card is compact",
+    "Tools title is compact",
+    "Favorites survive reload",
+    "Seven tool cards",
+    "Dark mode applied",
+    "320px home: no horizontal overflow",
+    "320px catalog: no horizontal overflow",
+    "320px games: no horizontal overflow",
+    "320px settings: no horizontal overflow",
+    "320px manage: no horizontal overflow",
+    "360px home: no horizontal overflow",
+    "360px catalog: no horizontal overflow",
+    "360px games: no horizontal overflow",
+    "360px settings: no horizontal overflow",
+    "360px manage: no horizontal overflow",
+    "390px home: no horizontal overflow",
+    "390px catalog: no horizontal overflow",
+    "390px games: no horizontal overflow",
+    "390px settings: no horizontal overflow",
+    "390px manage: no horizontal overflow",
+    "430px home: no horizontal overflow",
+    "430px catalog: no horizontal overflow",
+    "430px games: no horizontal overflow",
+    "430px settings: no horizontal overflow",
+    "430px manage: no horizontal overflow",
+    "Pure mode control has strong contrast and weight",
+    "Current amount button highlighted",
+    "Opening amount dialog uses current wording",
+    "Wheel configuration shares title row at 390px",
+    "Spin button visible above navigation at 390x844",
+    "Wheel configuration shares title row at 360px",
+    "Spin button visible above navigation at 360x640",
+    "Wheel configuration shares title row at 320px",
+    "Spin button visible above navigation at 320x568",
+    "wheel main page has no configuration textbox",
+    "wheel configuration has step-by-step guidance",
+    "wheel example clearly uses three separate rows",
+    "wheel invalid options stay on configuration page",
+    "wheel invalid options preserve stored data",
+    "wheel option limit enforced",
+    "wheel save returns to the same tool",
+    "wheel saved toast visible",
+    "wheel save persists normalized data",
+    "wheel configuration Back is handled",
+    "wheel Back discards unsaved configuration",
+    "wheel failed save keeps configuration open",
+    "wheel failed save preserves data",
+    "wheel config 320px no overflow",
+    "wheel config 430px no overflow",
+    "wheel on-screen Back returns to tool catalog",
+    "draw main page has no configuration textbox",
+    "draw configuration has step-by-step guidance",
+    "draw example clearly uses three separate rows",
+    "draw invalid options stay on configuration page",
+    "draw invalid options preserve stored data",
+    "draw option limit enforced",
+    "draw save returns to the same tool",
+    "draw saved toast visible",
+    "draw save persists normalized data",
+    "draw configuration Back is handled",
+    "draw Back discards unsaved configuration",
+    "draw failed save keeps configuration open",
+    "draw failed save preserves data",
+    "draw config 320px no overflow",
+    "draw config 430px no overflow",
+    "draw on-screen Back returns to tool catalog",
+    "Android handler returns coin to catalog",
+    "Tool opened from favorites also returns to catalog",
+    "Submission has both contacts and no send-email action",
+    "Copy email uses correct address",
+    "Copy QQ uses correct number",
+    "coin completes with result",
+    "coin no overflow",
+    "number completes with result",
+    "number no overflow",
+    "wheel completes with result",
+    "wheel no overflow",
+    "dice completes with result",
+    "dice no overflow",
+    "rps completes with result",
+    "rps no overflow",
+    "draw completes with result",
+    "draw no overflow",
+    "Tools renamed without changing IDs",
+    "石头 has a visible raster hand",
+    "石头 references bundled image",
+    "剪刀 has a visible raster hand",
+    "剪刀 references bundled image",
+    "布 has a visible raster hand",
+    "布 references bundled image",
+    "Hand atlas decodes",
+    "Cartoon coin faces decode",
+    "Coin lifts over tabletop",
+    "Coin has physical edge layers",
+    "Heads result agrees with face",
+    "Tails result agrees with face",
+    "Both coin faces stay centered on edge layers",
+    "Leaving coin cancels stale result updates",
+    "Metallic impact renders without clipping",
+    "Reduced-motion toss still resolves",
+    "Login visible",
+    "Account screen choose",
+    "Account screen register",
+    "Account screen otpLogin",
+    "Account screen verify",
+    "Account screen forgot",
+    "Account screen security",
+    "Nine original animal avatars",
+    "All nine AI-restored portrait assets decode locally",
+    "Bottom profile action buttons removed",
+    "Nickname save beside input",
+    "Avatar selection saves immediately",
+    "Profile preview uses repaired image with original fallback",
+    "Avatar selection keeps pending nickname",
+    "Avatar selection does not save pending nickname",
+    "Inline name save keeps profile open",
+    "Nickname saved notice visible under field",
+    "Save notice placed below nickname input",
+    "Nickname saves without changing avatar",
+    "Blank nickname rejected",
+    "Invalid nickname does not erase saved name",
+    "Pencil opens chooser and image auto-saves",
+    "Photo upload preserves pending nickname",
+    "Name save preserves uploaded photo",
+    "Default avatar replaces photo immediately",
+    "Profile 320px dark=False: no overflow",
+    "Profile 390px dark=False: no overflow",
+    "Profile 320px dark=True: no overflow",
+    "Profile 390px dark=True: no overflow",
+    "Failed nickname save keeps old data",
+    "Failed nickname save reports error",
+    "Changed account cannot save previous draft",
+    "Changed account data stays untouched",
+    "Profile edits persist per UID",
+    "Game list omits single-player and offline labels",
+    "Truth/dare starts without participant count",
+    "Start game remains visible on short screens",
+    "Truth/dare opens play directly",
+    "Next-player action removed",
+    "Challenge buttons symmetrical 320px dark=False",
+    "Reset shares title row 320px dark=False",
+    "Truth/dare no horizontal overflow 320px dark=False",
+    "Challenge buttons symmetrical 390px dark=False",
+    "Reset shares title row 390px dark=False",
+    "Truth/dare no horizontal overflow 390px dark=False",
+    "Challenge buttons symmetrical 320px dark=True",
+    "Reset shares title row 320px dark=True",
+    "Truth/dare no horizontal overflow 320px dark=True",
+    "Challenge buttons symmetrical 390px dark=True",
+    "Reset shares title row 390px dark=True",
+    "Truth/dare no horizontal overflow 390px dark=True",
+    "Reset purpose explained below choices",
+    "Every prompt in a session is unique",
+    "Exhausted decks never silently repeat",
+    "Reset asks before allowing old prompts again",
+    "Cancel reset preserves drawn prompts",
+    "Confirm reset refreshes both decks and clears the card",
+    "Explicit reset permits a previously used prompt",
+    "Cancel exiting preserves the session",
+    "Confirmed exit refreshes the question decks",
+    "New truth/dare session starts with full decks",
+    "wolf still has its player setup",
+    "wolf still deals roles correctly",
+    "spy still has its player setup",
+    "spy still deals roles correctly",
+    "Soup follows existing login gate",
+    "Soup library and all three difficulty levels available",
+    "New soup artwork decodes",
+    "Selected difficulty controls soup deal",
+    "Soup answer absent from player page before reveal",
+    "Host view asks for handover first",
+    "Cancel host view keeps answer hidden",
+    "Confirmed host view contains solution and three key facts",
+    "Back closes host view without leaving game",
+    "Soup hint 1 revealed progressively",
+    "Soup hint 2 revealed progressively",
+    "Soup hint 3 revealed progressively",
+    "Hints stop after three",
+    "Cancel public reveal keeps solution private",
+    "Explicit public reveal displays full solution",
+    "Next revealed case resets hints and hides new solution",
+    "Unrevealed case cannot be skipped accidentally",
+    "Confirmed skip consumes a different case",
+    "Soup deal exhausts selected bank without repeats",
+    "Exhausted soup deck does not silently repeat",
+    "Cancel soup reset preserves case history",
+    "Confirmed soup reset returns to setup",
+    "Hard soup filter applies after reset",
+    "Soup 320px dark=False: no overflow",
+    "Soup 390px dark=False: no overflow",
+    "Soup 320px dark=True: no overflow",
+    "Soup 390px dark=True: no overflow",
+    "Cancel leaving soup keeps current case",
+    "New soup session clears prior case history",
+    "Sync details and retry controls available",
+    "Logout requests confirmation",
+    "Cancel logout preserves session",
+    "Android Back dismisses logout confirmation",
+    "Confirm logout calls existing signOut once",
+    "No uncaught JS errors"
+  ],
+  "errors": []
+}

@@ -10,6 +10,24 @@ function failureKind(error) {
   if (['ETIMEDOUT','ECONNRESET','ENOTFOUND','NETWORK_ERROR'].includes(code)) return 'TRANSPORT_ERROR';
   return 'UNCLASSIFIED_ERROR';
 }
+// Only the documented single-document absence code is a normal empty read.
+function isDocumentAbsent(error) {
+  return error !== null && typeof error === 'object' && !Array.isArray(error) &&
+    error.code === 'DOCUMENT_NOT_FOUND' &&
+    ['status', 'statusCode'].every(key => error[key] === undefined || error[key] === 404);
+}
+async function readOwnDocument(doc) {
+  let response;
+  try { response = await doc.get(); }
+  catch (error) {
+    if (isDocumentAbsent(error)) return {data: null};
+    throw error;
+  }
+  const errors = [];
+  if (response?.error) errors.push(response.error);
+  if (response?.code !== undefined && response.code !== 0) errors.push(response);
+  return errors.length > 0 && errors.every(isDocumentAbsent) ? {data: null} : response;
+}
 async function inspectTransaction(db,uid) {
   let phase='START',readCompleted=false,documentFound=null;
   const fail=diagnosticCode=>({code:'TRANSACTION_READ_NOT_VERIFIED',transactionReadVerified:false,diagnosticCode,phase,stageCode:phase+'_'+diagnosticCode});
@@ -24,7 +42,7 @@ async function inspectTransaction(db,uid) {
       if (typeof doc?.get!=='function' || typeof doc?.field!=='function') throw {code:'LOCAL_API_MISMATCH'};
       doc=doc.field({_id:true,schema:true});
       if (typeof doc?.get!=='function') throw {code:'LOCAL_API_MISMATCH'};
-      const response=await doc.get();
+      const response=await readOwnDocument(doc);
       if (!response || response.error || (response.code!==undefined && response.code!==0)) throw response?.error || response || {code:'LOCAL_RESULT_INVALID'};
       if (!Object.hasOwn(response,'data')) throw {code:'LOCAL_RESULT_INVALID'};
       let data=response.data;
@@ -45,4 +63,4 @@ async function inspectTransaction(db,uid) {
     return fail(failureKind(error));
   }
 }
-module.exports={inspectTransaction,failureKind};
+module.exports={inspectTransaction,failureKind,readOwnDocument};

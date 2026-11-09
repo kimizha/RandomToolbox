@@ -1,0 +1,218 @@
+{
+  "protocolRevision": "readonly-comparison-v3",
+  "baseCommit": "f5ab9c19e3df84ed07f8c7c4fa27ffdb23e0e9cc",
+  "approvedPatchSha256": "27f9d2a871a7981e5caf49a7bde9a307369f02b3704ee68dd4caee4d2030ae17",
+  "package": {
+    "file": "HappyboxSecurityProbe-readonly-document-absent-v3.zip",
+    "bytes": 11121970,
+    "sha256": "d785c6a6a1a2c257d023cc420cb3c5cdc145b049dbe10db1a7af1011a5d183ad"
+  },
+  "sourceFilesSha256": {
+    "index.js": "d0e686bf2b6c52f45b9f0368a045ee270fd1e3d6d6dcc83893e90cd5be62a812",
+    "probe.cjs": "64f487bd409c6a302c47e6d3b95a92f6c0ec8e4d3c28ba469d569370bbc99eec",
+    "read-control.cjs": "d7992f317855c9b95f16d4a4229584cfe88715eaed8c9d5502876e8b9e42bdc4",
+    "transaction-read.cjs": "5daec92fdd30e6663f56f640a076ff28f3d049ab77539499e7b1b6dbc3f6b78b",
+    "package.json": "25a65f02f2b92bd997fbb8b1f46a62de6e95881ce7442839d8666950b0a318c4",
+    "package-lock.json": "2ef86562af26d38ccdbfbd727b7217aa9b15857197403ecc428dc51841c5ddd7"
+  },
+  "rollback": {
+    "file": "HappyboxSecurityProbe-readonly-comparison-v3-rollback.zip",
+    "sha256": "90a7958152e8372deea9d49a5a481a50029bb52e6616a622a5916efaf86b6d44"
+  },
+  "archiveChangedFiles": [
+    "transaction-read.cjs",
+    "read-control.cjs"
+  ],
+  "dependenciesIdenticalToRollback": true,
+  "checksWithExplicitCounts": 756,
+  "offlineSuitesPassed": 19,
+  "tests": [
+    {
+      "command": [
+        "node",
+        "scripts/check_probe_document_absence.cjs",
+        "/tmp/happybox-probe-locked-deps-kypqjs0u"
+      ],
+      "exitCode": 0,
+      "log": "core-0.log",
+      "checks": 37
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_probe_transaction.cjs"
+      ],
+      "exitCode": 0,
+      "log": "core-1.log",
+      "checks": 20
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_probe_transaction.cjs",
+        "cloudfunctions/happyboxSecurityProbeComparison"
+      ],
+      "exitCode": 0,
+      "log": "core-2.log",
+      "checks": 20
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_probe_comparison.cjs"
+      ],
+      "exitCode": 0,
+      "log": "core-3.log",
+      "checks": 17
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_security_probe.cjs"
+      ],
+      "exitCode": 0,
+      "log": "core-4.log",
+      "checks": 21
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_security_probe.cjs",
+        "cloudfunctions/happyboxSecurityProbeComparison"
+      ],
+      "exitCode": 0,
+      "log": "core-5.log",
+      "checks": 21
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_probe_sdk_contract.cjs",
+        "/tmp/happybox-probe-locked-deps-kypqjs0u"
+      ],
+      "exitCode": 0,
+      "log": "core-6.log",
+      "checks": null
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_sync.cjs"
+      ],
+      "exitCode": 0,
+      "log": "core-7.log",
+      "checks": 31
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_party_core.cjs"
+      ],
+      "exitCode": 0,
+      "log": "core-8.log",
+      "checks": 25
+    },
+    {
+      "command": [
+        "node",
+        "scripts/check_game_library.cjs"
+      ],
+      "exitCode": 0,
+      "log": "core-9.log",
+      "checks": null
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_apk_updates.py"
+      ],
+      "exitCode": 0,
+      "log": "core-10.log",
+      "checks": 55
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_data_protection_build.py"
+      ],
+      "exitCode": 0,
+      "log": "ui-0.log",
+      "checks": 27
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_probe_signing.py"
+      ],
+      "exitCode": 0,
+      "log": "ui-1.log",
+      "checks": 2
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_release.py"
+      ],
+      "exitCode": 0,
+      "log": "ui-2.log",
+      "checks": 15
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_dev_security_probe.py"
+      ],
+      "exitCode": 0,
+      "log": "ui-3.log",
+      "checks": 55
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_local_backup.py"
+      ],
+      "exitCode": 0,
+      "log": "ui-4.log",
+      "checks": 26
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_choice_ui.py"
+      ],
+      "exitCode": 0,
+      "log": "ui-5.log",
+      "checks": 51
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_party_ui.py"
+      ],
+      "exitCode": 0,
+      "log": "ui-6.log",
+      "checks": 123
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_ui.py"
+      ],
+      "exitCode": 0,
+      "log": "ui-7.log",
+      "checks": 210
+    }
+  ],
+  "syntaxChecksPassed": 13,
+  "notRun": [
+    "Live CloudBase verification",
+    "Android Robolectric: Gradle and Android SDK unavailable",
+    "Device/emulator tests: adb/device unavailable"
+  ],
+  "cloudResourcesChanged": false,
+  "accountSyncModified": false,
+  "syncResumed": false,
+  "apkBuilt": false,
+  "deviceEvictionEnabled": false,
+  "releaseCreated": false
+}

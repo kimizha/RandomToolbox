@@ -1,5 +1,5 @@
 'use strict';
-const {inspectTransaction,failureKind}=require('./transaction-read.cjs');
+const {inspectTransaction,failureKind,readOwnDocument}=require('./transaction-read.cjs');
 async function ordinaryRead(db,uid){
  const fail=category=>{const diagnosticCode=category==='TRANSACTION_UNSUPPORTED'?'READ_UNSUPPORTED':category;return {readVerified:false,diagnosticCode,stageCode:'ORDINARY_'+diagnosticCode,documentFound:null};};
  try{
@@ -10,7 +10,7 @@ async function ordinaryRead(db,uid){
   if(typeof doc?.field!=='function')return fail('READ_API_MISMATCH');
   doc=doc.field({_id:true,schema:true});
   if(typeof doc?.get!=='function')return fail('READ_API_MISMATCH');
-  const response=await doc.get();
+  const response=await readOwnDocument(doc);
   if(!response||response.error||(response.code!==undefined&&response.code!==0))return fail(failureKind(response?.error||response));
   if(!Object.hasOwn(response,'data'))return fail('READ_RESULT_INVALID');
   let data=response.data;

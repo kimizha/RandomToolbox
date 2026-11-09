@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {inspectTransaction}=require(process.argv[2] ? require('node:path').resolve(process.argv[2],'transaction-read.cjs') : './probe_transaction_candidate.cjs');
+const {inspectTransaction,readOwnDocument}=require(process.argv[2] ? require('node:path').resolve(process.argv[2],'transaction-read.cjs') : './probe_transaction_candidate.cjs');
 let checks=0;
 async function test(name,options,expected){
  let read=0,committed=false;
@@ -32,7 +32,7 @@ async function test(name,options,expected){
  await test('Start permission denied',{startError:{code:'PERMISSION_DENIED',message:'SECRET_FIXTURE'}},{phase:'START',diagnosticCode:'PERMISSION_DENIED',stageCode:'START_PERMISSION_DENIED'});
  await test('Unsupported transaction start',{startError:{code:'TRANSACTION_NOT_SUPPORTED'}},{phase:'START',diagnosticCode:'TRANSACTION_UNSUPPORTED'});
  await test('Read permission denied',{readError:{code:'PERMISSION_DENIED'}},{phase:'READ',diagnosticCode:'PERMISSION_DENIED',stageCode:'READ_PERMISSION_DENIED'});
- await test('Thrown missing document is not confirmed successful commit',{readError:{code:'DOCUMENT_NOT_FOUND'}},{phase:'READ',transactionReadVerified:false,diagnosticCode:'DOCUMENT_NOT_FOUND_ERROR'});
+ await test('Thrown missing document requires successful commit in patched implementation',{readError:{code:'DOCUMENT_NOT_FOUND'}},typeof readOwnDocument==='function' ? {phase:'COMPLETE',transactionReadVerified:true,diagnosticCode:'DOCUMENT_ABSENT'} : {phase:'READ',transactionReadVerified:false,diagnosticCode:'DOCUMENT_NOT_FOUND_ERROR'});
  await test('Returned error distinguished',{response:{error:{code:'PERMISSION_DENIED'}}},{phase:'READ',diagnosticCode:'PERMISSION_DENIED',stageCode:'READ_PERMISSION_DENIED'});
  await test('Null read then commit failure is not success',{response:{data:null},commitError:{code:'ETIMEDOUT'}},{phase:'COMMIT',transactionReadVerified:false,diagnosticCode:'TRANSPORT_ERROR',stageCode:'COMMIT_TRANSPORT_ERROR'});
  await test('Unknown exception does not leak raw details',{readError:Error('SECRET_FIXTURE')},{diagnosticCode:'UNCLASSIFIED_ERROR'});
