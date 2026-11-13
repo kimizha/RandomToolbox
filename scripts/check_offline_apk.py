@@ -1,5 +1,5 @@
 """Inspect final release assets, music identity and absence of account bundles."""
-import os,zipfile,hashlib
+import os,zipfile,hashlib,json
 from pathlib import Path
 with zipfile.ZipFile(os.environ['RT_APK_PATH']) as z:
  names=z.namelist()
@@ -12,3 +12,12 @@ with zipfile.ZipFile(os.environ['RT_APK_PATH']) as z:
   assert z.read('assets/music/'+f.name)==f.read_bytes(),f.name
  assert 'assets/ui/local-backup.js' in names and 'assets/ui/offline.js' in names
 print('APK offline asset isolation and all six original music files verified')
+
+from verify_signed_apk import PROBE_CERT_SHA256
+report=json.loads(Path('release-output/verification.json').read_text())
+assert report['certificate_sha256']==PROBE_CERT_SHA256
+assert report['version_code']>100161 and report['package_name']=='com.randomtoolbox.app'
+assert not report['debuggable'], 'Candidate must use release variant'
+previous=report.get('previous_apk',{})
+if previous.get('comparison')=='verified':assert previous.get('same_certificate'), 'Prior APK certificate mismatch; stop distribution'
+print('Release candidate identity and overwrite certificate checks passed')
