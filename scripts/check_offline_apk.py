@@ -2,14 +2,22 @@
 import os,zipfile,hashlib,json
 from pathlib import Path
 with zipfile.ZipFile(os.environ['RT_APK_PATH']) as z:
- names=z.namelist()
+ # Android ZIP writers may store UTF-8 path bytes without setting the UTF-8 flag.
+ # Python then exposes those bytes as CP437; normalize names only for comparison.
+ def decoded(info):
+  if info.flag_bits & 0x800:return info.filename
+  try:return info.filename.encode('cp437').decode('utf-8')
+  except (UnicodeEncodeError,UnicodeDecodeError):return info.filename
+ entries={decoded(i):i for i in z.infolist()}
+ assert len(entries)==len(z.infolist()), 'Ambiguous normalized ZIP paths'
+ names=list(entries)
  assert not any('cloudbase' in n.lower() or 'dev-security-probe' in n or 'probe-context' in n for n in names)
  for n in names:
   if n.startswith('assets/') and n.endswith(('.html','.js')):
-   s=z.read(n).decode()
+   s=z.read(entries[n]).decode()
    assert not any(x in s for x in ['RT_AUTH_NATIVE_V3','RTCloudbaseSDK','rtSyncLocalChanged','rtLoggedIn','rtShowLogin','happyboxSecurityProbe']),n
  for f in Path('app/src/main/assets/music').glob('*.mp3'):
-  assert z.read('assets/music/'+f.name)==f.read_bytes(),f.name
+  assert z.read(entries['assets/music/'+f.name])==f.read_bytes(),f.name
  assert 'assets/ui/local-backup.js' in names and 'assets/ui/offline.js' in names
 print('APK offline asset isolation and all six original music files verified')
 
