@@ -1,5 +1,5 @@
 {
-  "passed": 34,
+  "passed": 40,
   "checks": [
     "Startup preserves all legacy keys byte-for-byte",
     "Favorites preserve historical order",
@@ -22,6 +22,12 @@
     "rps tool opens",
     "draw tool opens",
     "score tool opens",
+    "coin produces a local result",
+    "number produces a local result",
+    "wheel produces a local result",
+    "dice produces a local result",
+    "rps produces a local result",
+    "draw produces a local result",
     "wolf game accessible",
     "spy game accessible",
     "truth game accessible",

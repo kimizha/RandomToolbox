@@ -15,3 +15,7 @@
 待真机验收：同签名覆盖安装后的 WebView 数据、原生文件导出、真实扬声器播放/音效、震动、横竖屏、返回键、系统浏览器及更新断网/恢复、所有玩法完整流程。浏览器模拟和构建成功不能替代这些验收。安装前推荐在旧版本导出 JSON；直接覆盖安装，不要卸载旧版。
 
 修改范围：两份工作流、app/build.gradle、MainActivity.java、index.html、ui/offline.js、ui/local-backup.js、scripts/local-backup.js、签名准备及验证、离线回归/签名/APK 检查脚本和本文档/测试记录。没有修改腾讯云或线上更新文件。
+
+本地回归结果：离线专项 40 项（含六种随机工具真实产生结果）、聚会 UI 123 项、选择 UI 51 项、纯规则 25 项、APK 更新策略 55 项全部通过，题库校验通过。完整记录见 docs/offline。原生测试及最终 APK 元数据以对应 Actions 的 XML/verification.json 为准。首次构建未上传 APK：校验脚本未兼容 Android ZIP 的 UTF-8 路径标记；已修复仅用于核对的名称解码，音乐资源未修改。
+
+最终候选构建成功：https://github.com/kimizha/RandomToolbox/actions/runs/43428504255。APK 为 Release 变体，versionName=3.0，versionCode=200003，源提交 b118fc4249100a83467c3a3ac9470e40f96a9163。签名与已交付版本一致，并实际对比仓库已有 2.7 APK 的包名/签名/递增版本；与 100161 的覆盖安装仍须真机验证。后续仅测试及交付记录提交，不改变此 APK 的运行资产。完整元数据、改动清单见 docs/offline/delivery.json、changed-files.txt。未创建 Release。

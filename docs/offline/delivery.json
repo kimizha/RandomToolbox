@@ -1,0 +1,46 @@
+{
+  "buildUrl": "https://github.com/kimizha/RandomToolbox/actions/runs/43428504255",
+  "apkDownloadUrl": "https://github.com/kimizha/RandomToolbox/actions/runs/43428504255/artifacts/14038039387",
+  "buildCommit": "b118fc4249100a83467c3a3ac9470e40f96a9163",
+  "versionName": "3.0",
+  "versionCode": 200003,
+  "packageName": "com.randomtoolbox.app",
+  "debuggable": false,
+  "certificateSha256": "714524c73030e3d5010c849f52012af5adc7f36ecc2b0013ec6bff4c8324fa4b",
+  "apkSha256": "d72a10217c7527e437abd728892c5a2acb6c275008606c188430fde90bd0f810",
+  "previousApk": {
+    "comparison": "verified",
+    "release_tag": "ui-v2.7-code100142",
+    "package_name": "com.randomtoolbox.app",
+    "version_code": 100142,
+    "version_name": "2.7",
+    "debuggable": true,
+    "certificate_sha256": "714524c73030e3d5010c849f52012af5adc7f36ecc2b0013ec6bff4c8324fa4b",
+    "apk_sha256": "dfa2a0cf00aae61753c8838a0046e0f8162e8d1e39f3ccda115daecd19281208",
+    "same_certificate": true,
+    "can_cover_install": true
+  },
+  "offlineAssetInspection": "passed; no SDK, auth, sync or test-probe bundles; all six music files byte-identical",
+  "cloudResourcesModified": false,
+  "onlineVersionJsonModified": false,
+  "releaseCreated": false,
+  "tests": {
+    "browserOfflineLocal": 40,
+    "browserOfflineCI": 34,
+    "partyUI": 123,
+    "choiceUI": 51,
+    "partyRules": 25,
+    "apkPolicy": 55,
+    "nativeUpdateTask": "testDebugUnitTest passed; 11 test methods",
+    "libraryValidation": "passed"
+  },
+  "pendingRealDevice": [
+    "Same-signature overwrite of 100161 retaining WebView data",
+    "Native JSON export",
+    "Real audio and haptic feedback",
+    "Small-screen and rotation behavior",
+    "Android Back and system browser",
+    "Live APK update configuration and network recovery"
+  ],
+  "dataLimits": "Current local preference keys retained; no destructive migration; cloud-only undownloaded data cannot be migrated by offline build; dormant local account caches retained for JSON export"
+}

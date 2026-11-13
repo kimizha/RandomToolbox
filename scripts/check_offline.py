@@ -37,6 +37,10 @@ with sync_playwright() as pw:
  for tool in ['coin','number','wheel','dice','rps','draw','score']:
   page.evaluate('id=>openTool(id)',tool);check(tool+' tool opens',page.locator('#tool' if tool!='score' else '#game').is_visible())
   page.evaluate("if(window.HBParty?.active)HBParty.active.stage='end';party.stage='end';go('home')")
+ for tool,action,result in [('coin','flipCoin','coinResult'),('number','genNumber','numResult'),('wheel','spinWheel','wheelResult'),('dice','rollDice','diceResult'),('rps','playRps','rpsResult'),('draw','drawOne','drawResult')]:
+  page.evaluate('id=>openTool(id)',tool);page.evaluate(action+'()');page.wait_for_function('!busy',timeout=15000)
+  check(tool+' produces a local result',bool(page.locator('#'+result).inner_text().strip()) and not re.search('准备|中…',page.locator('#'+result).inner_text()))
+  page.evaluate("go('home')")
  for game in ['wolf','spy','truth','soup']:
   page.evaluate('id=>openGame(id)',game);check(game+' game accessible',page.locator('#game').is_visible());page.evaluate("party.stage='end';go('home')")
  for game in ['bomb','charades','taboo']:
