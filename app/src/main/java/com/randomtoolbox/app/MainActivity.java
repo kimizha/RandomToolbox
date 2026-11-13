@@ -8,7 +8,6 @@ import android.os.SystemClock;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.webkit.ValueCallback;
 import android.content.SharedPreferences;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -54,12 +53,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     private WebView webView;
     private ApkUpdateManager apkUpdates;
     private boolean updateCheckFailed;
-    private static final int AVATAR_PICK_REQUEST = 481;
     private static final int BACKUP_SAVE_REQUEST = 482;
     private static final int MAX_BACKUP_BYTES = 16 * 1024 * 1024;
     private byte[] backupBytes;
     private String backupRequestId;
-    private ValueCallback<Uri[]> avatarFileCallback;
     private SharedPreferences prefs;
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -103,27 +100,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
         s.setAllowFileAccess(true);
-        s.setAllowContentAccess(true); // Read only the image selected through the system picker.
+        s.setAllowContentAccess(false);
         s.setAllowFileAccessFromFileURLs(false);
         s.setAllowUniversalAccessFromFileURLs(false);
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
-                                                       WebChromeClient.FileChooserParams params) {
-                if (!HOME_URL.equals(view.getUrl()) || apkUpdates!=null&&apkUpdates.isBlocking()) { callback.onReceiveValue(null); return true; }
-                if (avatarFileCallback != null) avatarFileCallback.onReceiveValue(null);
-                avatarFileCallback = callback;
-                Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                picker.addCategory(Intent.CATEGORY_OPENABLE);
-                picker.setType("image/*");
-                picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                try { startActivityForResult(picker, AVATAR_PICK_REQUEST); }
-                catch (android.content.ActivityNotFoundException e) {
-                    avatarFileCallback = null; callback.onReceiveValue(null);
-                    notifyUser("未找到图片选择器，请选择下方默认头像");
-                }
-                return true;
-            }
-        });
+        webView.setWebChromeClient(new WebChromeClient());
         webView.addJavascriptInterface(new NativeBridge(), "RandomToolboxNative");
         webView.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
@@ -156,7 +136,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     updateStatus("已恢复内置网页版本 " + BUNDLED_WEB_VERSION);
                     return;
                 }
-                // Keep bundled auth UI authoritative until signed multi-file web updates are supported.
+                // Keep bundled offline UI authoritative until signed multi-file web updates are supported.
                 if(apkUpdates!=null)apkUpdates.onPageReady();
             }
         });
@@ -267,7 +247,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                   box.onchange=function(){
                     var st=JSON.parse(localStorage.getItem('rt_settings')||'{}');
                     st.shake=box.checked;
-                    localStorage.setItem('rt_settings',JSON.stringify(st));if(typeof rtSyncLocalChanged==='function')rtSyncLocalChanged('rt_settings');
+                    localStorage.setItem('rt_settings',JSON.stringify(st));
                     if(typeof settings!=='undefined')settings.shake=box.checked;
                   };
                   row.appendChild(label);row.appendChild(box);
@@ -406,9 +386,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 main.post(() -> beginBackupExport(bytes, requestId));
             } catch (Exception ignored) { backupResult(requestId, "FAILED"); }
         }
-        @JavascriptInterface public boolean isSecurityProbeTestBuild() {
-            return (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
-        }
+
         @JavascriptInterface public void vibrate(int milliseconds) {
             int ms = Math.max(1, Math.min(500, milliseconds));
             nativeVibrate(new long[]{0, ms});
@@ -543,22 +521,10 @@ public class MainActivity extends Activity implements SensorEventListener {
             });
             return;
         }
-        if (requestCode != AVATAR_PICK_REQUEST || avatarFileCallback == null) return;
-        ValueCallback<Uri[]> callback = avatarFileCallback;
-        avatarFileCallback = null;
-        Uri selected = resultCode == RESULT_OK && data != null ? data.getData() : null;
-        if (selected != null) {
-            try {
-                String mime = getContentResolver().getType(selected);
-                if (!"content".equals(selected.getScheme()) || mime == null || !mime.startsWith("image/")) selected = null;
-            } catch (Exception e) { selected = null; }
-        }
-        callback.onReceiveValue(selected == null ? null : new Uri[]{selected});
     }
     @Override protected void onDestroy() {
         backupBytes = null; backupRequestId = null;
         if(apkUpdates!=null)apkUpdates.destroy();
-        if (avatarFileCallback != null) { avatarFileCallback.onReceiveValue(null); avatarFileCallback = null; }
         worker.shutdownNow();
         if (sensorManager != null) sensorManager.unregisterListener(this);
         if (webView != null) { webView.destroy(); webView = null; }

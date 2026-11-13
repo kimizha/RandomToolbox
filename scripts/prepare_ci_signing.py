@@ -5,7 +5,7 @@ names=['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS'
 values={name:os.environ.get(name,'') for name in names}
 provided=sum(bool(v) for v in values.values())
 if provided and provided!=len(names):raise SystemExit('Incomplete Android signing Secrets; all four are required')
-version=100000+int(os.environ.get('GITHUB_RUN_NUMBER','0'))
+version=(200000 if os.environ.get('GITHUB_REF')=='refs/heads/release/happybox-offline' else 100000)+int(os.environ.get('GITHUB_RUN_NUMBER','0'))
 if version>2147483647:raise SystemExit('Android versionCode exceeds the platform limit')
 protection=os.environ.get('HAPPYBOX_DATA_PROTECTION_TEST')=='1'
 probe=os.environ.get('HAPPYBOX_SECURITY_PROBE_TEST')=='1'

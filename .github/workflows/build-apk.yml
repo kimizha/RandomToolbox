@@ -75,6 +75,7 @@ jobs:
           exit 1
 
   build:
+    if: github.ref != 'refs/heads/release/happybox-offline'
     runs-on: ubuntu-24.04
     env:
       HAPPYBOX_SECURITY_PROBE_TEST: ${{ github.ref == 'refs/heads/ui/android-happybox-redesign' && (inputs.security_probe == true || contains(github.event.head_commit.message, '[security-probe-test]')) && '1' || '0' }}

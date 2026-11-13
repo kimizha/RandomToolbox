@@ -21,7 +21,7 @@ def apk_info(apk,tools):
 def main():
     sdk=Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
     tools=sdk/'build-tools/35.0.0'
-    apk=Path('app/build/outputs/apk/debug/app-debug.apk')
+    apk=Path(os.environ.get('RT_APK_PATH','app/build/outputs/apk/debug/app-debug.apk'))
     info=apk_info(apk,tools)
     with zipfile.ZipFile(apk) as archive:
         html=archive.read('assets/index.html').decode('utf-8')
