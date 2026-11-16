@@ -1,4 +1,4 @@
-"""Inspect final release assets, music identity and absence of account bundles."""
+"""Inspect final release assets and absence of music/account bundles."""
 import os,zipfile,hashlib,json
 from pathlib import Path
 with zipfile.ZipFile(os.environ['RT_APK_PATH']) as z:
@@ -16,15 +16,14 @@ with zipfile.ZipFile(os.environ['RT_APK_PATH']) as z:
   if n.startswith('assets/') and n.endswith(('.html','.js')):
    s=z.read(entries[n]).decode()
    assert not any(x in s for x in ['RT_AUTH_NATIVE_V3','RTCloudbaseSDK','rtSyncLocalChanged','rtLoggedIn','rtShowLogin','happyboxSecurityProbe']),n
- for f in Path('app/src/main/assets/music').glob('*.mp3'):
-  assert z.read(entries['assets/music/'+f.name])==f.read_bytes(),f.name
+ assert not any(n.startswith('assets/music/') or n.lower().endswith(('.mp3','.wav','.ogg')) for n in names), 'Unexpected music asset'
  assert 'assets/ui/local-backup.js' in names and 'assets/ui/offline.js' in names
-print('APK offline asset isolation and all six original music files verified')
+print('APK offline asset isolation and removal of all music files verified')
 
 from verify_signed_apk import PROBE_CERT_SHA256
 report=json.loads(Path('release-output/verification.json').read_text())
 assert report['certificate_sha256']==PROBE_CERT_SHA256
-assert report['version_code']>100161 and report['package_name']=='com.randomtoolbox.app'
+assert report['version_code']>200003 and report['package_name']=='com.randomtoolbox.app'
 assert not report['debuggable'], 'Candidate must use release variant'
 previous=report.get('previous_apk',{})
 if previous.get('comparison')=='verified':assert previous.get('same_certificate'), 'Prior APK certificate mismatch; stop distribution'

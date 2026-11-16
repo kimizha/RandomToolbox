@@ -16,7 +16,7 @@ android {
         applicationId 'com.randomtoolbox.app'
         minSdk 26
         targetSdk 28
-        versionCode Integer.parseInt(System.getenv('ANDROID_VERSION_CODE') ?: '200001')
+        versionCode Integer.parseInt(System.getenv('ANDROID_VERSION_CODE') ?: '200004')
         versionName '3.0'
     }
 

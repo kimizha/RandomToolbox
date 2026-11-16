@@ -19,7 +19,7 @@ with sync_playwright() as pw:
   if r.request.url.startswith(origin):r.continue_()
   else:external.append(r.request.url);r.abort()
  context.route('**/*',route)
- seed={'rt_favorites':'["wheel","coin","draw"]','rt_wheelItems':'["旧配置甲","旧配置乙"]','rt_drawItems':'["甲","乙"]','rt_history':'[{"type":"coin","value":"正面"}]','rt_settings':'{"dark":true,"sound":false,"vibe":false,"volume":55,"speed":"fast"}','rt_sync_active_uid':'legacy-owner','rt_profile_legacy-owner':'{"nickname":"保留原始数据"}','rt_sync_cache_legacy-owner':'{"values":{"rt_wheelItems":"[\"缓存甲\",\"缓存乙\"]"}}'}
+ seed={'rt_musicTrack':'2','rt_musicVolume':'60','rt_favorites':'["wheel","coin","draw"]','rt_wheelItems':'["旧配置甲","旧配置乙"]','rt_drawItems':'["甲","乙"]','rt_history':'[{"type":"coin","value":"正面"}]','rt_settings':'{"dark":true,"sound":false,"vibe":false,"volume":55,"speed":"fast"}','rt_sync_active_uid':'legacy-owner','rt_profile_legacy-owner':'{"nickname":"保留原始数据"}','rt_sync_cache_legacy-owner':'{"values":{"rt_wheelItems":"[\"缓存甲\",\"缓存乙\"]"}}'}
  context.add_init_script('if(!localStorage.getItem("fixture")){const data='+json.dumps(seed)+';Object.entries(data).forEach(([k,v])=>localStorage.setItem(k,v));localStorage.setItem("fixture","1")}')
  page.goto(origin);page.wait_for_timeout(200)
  check('Startup preserves all legacy keys byte-for-byte',page.evaluate('data=>Object.entries(data).every(([k,v])=>localStorage.getItem(k)===v)',seed))
@@ -46,8 +46,16 @@ with sync_playwright() as pw:
  for game in ['bomb','charades','taboo']:
   page.evaluate('id=>HBParty.open(id)',game);check(game+' offline game accessible',page.locator('#game').is_visible());page.evaluate("HBParty.active.stage='end';party.stage='end';go('home')")
  page.evaluate("setSetting('dark',false)");page.reload();check('Theme persists',not page.locator('body').evaluate("e=>e.classList.contains('dark')"))
- page.evaluate("go('settings')");check('Music files load locally',page.locator('#offlineMusic').evaluate('e=>e.src.includes("/music/")') and page.locator('#offlineTrack option').count()==6)
- choose(page,'#offlineTrack','1');page.locator('#musicVolume').evaluate("e=>e.value='40'");page.locator('#musicVolume').dispatch_event('input');page.reload();check('Music controls persist',page.locator('#offlineTrack').input_value()=='1' and page.locator('#offlineMusic').evaluate('e=>e.volume')==.4)
+ page.evaluate("go('settings')")
+ check('No music controls, entries or text',page.locator('audio,#musicWidget,#offlineTrack,#musicVolume').count()==0 and not re.search('音乐|歌曲|曲目|播放',page.locator('body').inner_text()))
+ page.evaluate("setSetting('sound',true);setSetting('volume',40);setSetting('vibe',true)")
+ check('Tool sound synthesis retained',page.evaluate('!!soundReady()'))
+ page.evaluate("sfx('result')")
+ page.reload();check('Tool sound, volume and vibration persist',page.evaluate('settings.sound&&settings.volume===40&&settings.vibe'))
+ for width in [320,390,768]:
+  for dark in [True,False]:
+   page.set_viewport_size({'width':width,'height':844});page.evaluate("go('settings');setSetting('dark',"+str(dark).lower()+")")
+   check(f'Settings {width}px dark={dark} fits without music',page.evaluate('document.documentElement.scrollWidth<=innerWidth') and page.locator('audio').count()==0)
  page.evaluate("openTool('coin');appBack()");check('Android Back returns to tools',page.locator('#catalog').is_visible())
  check('No external requests',not external);check('No runtime errors',not errors)
  browser.close()

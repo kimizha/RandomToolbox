@@ -1,5 +1,5 @@
 /* Local, user-initiated export. Never enumerate/export SDK credentials or call the network. */
-const RT_BACKUP_FIXED_KEYS=new Set(['rt_musicTrack','rt_musicVolume','rt_settings','rt_wheelItems','rt_drawItems','rt_favorites','rt_history','hb_start_page','hb_party_local_v1','rt_sync_active_uid','rt_sync_guest_cache']);
+const RT_BACKUP_FIXED_KEYS=new Set(['rt_settings','rt_wheelItems','rt_drawItems','rt_favorites','rt_history','hb_start_page','hb_party_local_v1','rt_sync_active_uid','rt_sync_guest_cache']);
 let rtBackupPending=null;
 function rtBackupAllowedKey(key){return RT_BACKUP_FIXED_KEYS.has(key)||/^rt_(profile|sync_cache)_.+$/.test(key)}
 function rtBuildLocalBackup(){
