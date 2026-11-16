@@ -1,0 +1,20 @@
+M	app/build.gradle
+M	app/src/main/assets/index.html
+D	app/src/main/assets/music/.gitkeep
+D	app/src/main/assets/music/ACN Music. - Fooling Mode (1).mp3
+D	app/src/main/assets/music/Kevin MacLeod - Fluffing a Duck.mp3
+D	app/src/main/assets/music/NewPiano - tricks and traps.mp3
+D	app/src/main/assets/music/Raphaël Beau - Micmacs à la gare.mp3
+D	app/src/main/assets/music/SIDNEY JOSEPH BECHET - Si tu vois ma mère.mp3
+D	app/src/main/assets/music/Ugress - Undead Funeral March.mp3
+M	app/src/main/assets/ui/happybox.css
+M	app/src/main/assets/ui/happybox.js
+M	app/src/main/assets/ui/local-backup.js
+M	app/src/main/assets/ui/offline.js
+M	app/src/main/java/com/randomtoolbox/app/MainActivity.java
+A	docs/MUSIC-REMOVAL.md
+A	docs/no-music/browser-tests.json
+M	scripts/check_offline.py
+M	scripts/check_offline_apk.py
+M	scripts/check_party_ui.py
+M	scripts/local-backup.js

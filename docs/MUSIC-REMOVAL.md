@@ -11,3 +11,5 @@
 check_offline 测试旧键原样保留、收藏排序/转盘重启保存、所有随机工具实际产生结果、玩法进入、无音乐入口、工具音效 AudioContext、音量及震动设置持久化、320/390/768 宽度深浅色无溢出、返回键、无账号和外部请求。另运行既有聚会 UI、选择界面、纯规则、题库及 APK 更新策略检查。check_offline_apk 检查最终 APK 无音频资源/SDK/探针，并验证包名、递增 versionCode、固定证书、Release 标志。
 
 真机仍需确认：旧版本覆盖安装后数据保留、实际扬声器工具音效及音量、硬件震动、Android 返回与系统浏览器更新跳转。本次不创建 Release、不修改线上 version.json、不向用户推送更新、不操作腾讯云。
+
+交付：https://github.com/kimizha/RandomToolbox/actions/runs/43816219853 构建成功，源提交 3d7ea1960633fb2bb1eb1b4d42f283fe5b4d7b53；3.0 / 200004，Release APK，包名不变，证书 SHA-256 714524c73030e3d5010c849f52012af5adc7f36ecc2b0013ec6bff4c8324fa4b。最终 APK 无音乐资源检查及原生更新测试通过。浏览器测试 47 + 聚会 UI 123 + 选择界面 51 + 纯规则 25 + APK 策略 55 项通过。完整元数据和删除/修改清单见 docs/no-music/delivery.json、changes.txt。后续记录提交只含文档和测试结果，不改变此 APK 的运行资产。

@@ -1,0 +1,29 @@
+{
+  "buildUrl": "https://github.com/kimizha/RandomToolbox/actions/runs/43816219853",
+  "apkDownloadUrl": "https://github.com/kimizha/RandomToolbox/actions/runs/43816219853/artifacts/14202129755",
+  "sourceCommit": "3d7ea1960633fb2bb1eb1b4d42f283fe5b4d7b53",
+  "versionName": "3.0",
+  "versionCode": 200004,
+  "packageName": "com.randomtoolbox.app",
+  "debuggable": false,
+  "certificateSha256": "714524c73030e3d5010c849f52012af5adc7f36ecc2b0013ec6bff4c8324fa4b",
+  "apkSha256": "6b29196691866fc28dcb8a2a7eb0dd4a5af47ca162aff92a263ad67a3f734448",
+  "artifactZipBytes": 23987356,
+  "tests": {
+    "offlineBrowser": 47,
+    "partyUI": 123,
+    "choiceUI": 51,
+    "partyRules": 25,
+    "apkPolicy": 55,
+    "nativeTestDebugUnitTest": "passed",
+    "releaseAssembly": "passed",
+    "finalApkNoMusicInspection": "passed"
+  },
+  "dataCleared": false,
+  "cloudServicesAdded": false,
+  "pendingDeviceVerification": [
+    "Cover installation over 200003 retaining local data",
+    "Real speaker sound/volume and hardware vibration",
+    "System browser update link and native Android back behavior"
+  ]
+}
